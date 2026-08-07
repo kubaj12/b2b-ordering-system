@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>io.github.kubaj12</groupId>
-	<artifactId>online-store</artifactId>
+	<artifactId>b2b-ordering-system</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name/>
 	<description/>
