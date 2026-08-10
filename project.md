@@ -71,7 +71,7 @@ All pages require authentication except login, invitation acceptance, password r
 
 ## Customer and Billing Data
 
-A `CustomerProfile` represents one company and has a one-to-one relationship with a CUSTOMER user.
+A `CustomerProfile` represents one company and has a one-to-one relationship with a CUSTOMER user. It is internal employee data and must not be exposed to the customer.
 
 Employees and administrators create and edit customer profiles.
 
@@ -83,9 +83,11 @@ The profile must contain the purchaser-identification data needed by an employee
 - optional contact phone number;
 - creation and update timestamps.
 
-The company name, NIP, and complete billing address are mandatory. Billing addresses are limited to Poland. NIP must be normalized, validated, and unique between customer profiles. These fields identify the invoice purchaser; seller data, invoice numbering, VAT calculation, invoice issuance, and KSeF submission remain outside the application.
+The company name, NIP, and complete billing address are mandatory. Billing addresses are limited to Poland. NIP must be normalized, validated, and unique between customer profiles. These fields identify the invoice purchaser; seller data, invoice numbering, invoice issuance, and KSeF submission remain outside the application.
 
 The billing data effective at order submission must be copied into the order as an immutable snapshot so later profile changes do not alter historical orders.
+
+Customer profiles and order billing snapshots are visible only to EMPLOYEE and ADMIN users. They must not appear in checkout, customer order details, or customer emails.
 
 ## Catalog
 
@@ -114,11 +116,12 @@ Data:
 - product reference;
 - unique SKU code;
 - current base net price in PLN;
+- current VAT rate expressed as a percentage;
 - current available quantity;
 - active status;
 - zero or more attribute values describing the variant;
+- optional image reference;
 - creation and update timestamps.
-- optional image
 
 Quantity belongs only to the SKU. `available quantity` is the single inventory quantity field; there is no separate product quantity or second stock field. It is a non-negative integer.
 
@@ -134,15 +137,23 @@ Customers must be able to:
 
 - search by product name or SKU code;
 - filter by category;
-- filter by availability, including low-stock and out-of-stock SKUs;
 - view product descriptions, variants, their effective prices, and exact current quantities;
+- view the SKU image as a thumbnail in search results when an image is available;
 - view active out-of-stock products and SKUs, clearly marked as unavailable.
 
-Low stock means an available quantity from one through five units. Out-of-stock and inactive SKUs cannot be added to a cart. Catalog results must be paginated.
+Out-of-stock and inactive SKUs cannot be added to a cart. Catalog results must be paginated. Employees and administrators may add, replace, or remove a SKU image.
 
 ## Pricing
 
-All prices are net prices in PLN. VAT and gross invoice totals are calculated outside the application. Monetary values use decimal arithmetic with two fractional digits and `HALF_UP` rounding.
+All prices are stored as net prices in PLN. Every SKU has a current VAT rate. The application calculates and displays net, VAT, and gross amounts for checkout, submitted orders, and employee reference. Invoice generation remains outside the application.
+
+Monetary values use decimal arithmetic with two fractional digits and `HALF_UP` rounding. Amounts are calculated for each order line as follows:
+
+1. line net amount = effective unit net price multiplied by quantity;
+2. line VAT amount = line net amount multiplied by the SKU VAT rate, rounded to two fractional digits;
+3. line gross amount = line net amount plus line VAT amount.
+
+Order net, VAT, and gross totals are the sums of their corresponding rounded line amounts.
 
 Every active SKU has one current base price. Employees and administrators may also manage:
 
@@ -156,7 +167,7 @@ The effective customer price is resolved in this order:
 2. the price from the customer's assigned price list;
 3. the SKU base price.
 
-Customers see only their effective prices. Price changes affect carts and future orders but never alter submitted orders. Checkout must revalidate effective prices. If a price changed after the checkout review was generated, the order must not be submitted until the customer reviews the updated total.
+Customers see only their effective prices together with the applicable VAT and calculated gross amounts. Price or VAT-rate changes affect carts and future orders but never alter submitted orders. Checkout must revalidate effective prices and VAT rates. If either changed after the checkout review was generated, the order must not be submitted until the customer reviews the updated totals.
 
 ## Inventory Management
 
@@ -164,8 +175,6 @@ Employees and administrators maintain SKU quantities on a dedicated inventory pa
 
 - searching by product name or SKU code;
 - filtering by category;
-- filtering out-of-stock SKUs;
-- filtering low-stock SKUs, meaning an available quantity from one through five units;
 - inline quantity updates with non-negative integer validation;
 - displaying who last changed a quantity and when.
 
@@ -190,22 +199,23 @@ A new active cart is created when needed after the previous cart is completed.
 
 A cart item contains a SKU and a positive integer quantity. Adding the same SKU again updates the existing line rather than creating a duplicate. A cart may contain no more than 500 distinct lines. Requested quantities remain subject to the current SKU availability at checkout.
 
-Current effective prices and stock must be revalidated when checkout is displayed and again when the order is submitted. Invalid, inactive, repriced, or unavailable items must be clearly presented to the customer for correction.
+Current effective prices, VAT rates, and stock must be revalidated when checkout is displayed and again when the order is submitted. Invalid, inactive, repriced, or unavailable items must be clearly presented to the customer for correction.
 
 ## Checkout and Delivery Address
 
 Checkout contains:
 
-- a review of cart lines, effective net prices, and the net order total in PLN;
-- the customer's read-only company and billing data;
+- a review of cart lines with effective net prices, VAT rates, and net, VAT, and gross totals in PLN;
+- an optional customer-provided purchase-order number field;
 - a delivery address form;
-- no purchase-order number, reference number, or order comment fields.
+- no separate reference-number or order-comment fields.
+
+The purchase-order number identifies the order in the customer's own purchasing process. It does not need to be unique and does not replace the application's public order number. When provided, it must be displayed in the checkout review, confirmation page, customer order details, internal employee inbox, and notification emails.
 
 Delivery is limited to addresses in Poland. The customer enters a delivery address for every order; the application does not maintain an address book.
 
 The delivery address contains:
 
-- recipient company or organization name;
 - contact person's full name;
 - contact phone number;
 - street;
@@ -224,7 +234,7 @@ Submission must use a one-time checkout token. Reusing a consumed token must not
 Submitting a valid checkout must complete the following steps in one database transaction:
 
 1. verify the one-time checkout token;
-2. revalidate the customer account, cart, SKUs, prices, and available quantities;
+2. revalidate the customer account, cart, SKUs, prices, VAT rates, and available quantities;
 3. create the order and immutable order items;
 4. reduce SKU quantities;
 5. mark the cart as `COMPLETED`;
@@ -250,9 +260,10 @@ An order contains:
 
 - internal database identifier;
 - unique public order number in the format `ORD-YYYY-NNNNNN`;
+- optional customer-provided purchase-order number;
 - customer reference;
 - status;
-- total net amount and currency (`PLN`);
+- total net, VAT, and gross amounts and currency (`PLN`);
 - customer company and billing snapshot;
 - delivery address snapshot;
 - submitted timestamp;
@@ -264,10 +275,11 @@ An order item contains immutable snapshots of:
 - product name;
 - variant attributes;
 - effective unit net price and currency;
+- VAT rate;
 - quantity;
-- line net total.
+- line net, VAT, and gross totals.
 
-The order total is the sum of line net totals. Historical order data must not change when current products, SKUs, prices, customer data, or addresses change.
+Historical order data must not change when current products, SKUs, prices, VAT rates, customer data, or addresses change.
 
 ## Order Inbox and Notifications
 
@@ -279,7 +291,9 @@ Immediately after an order transaction commits, the application must:
 - send an order notification email to every active EMPLOYEE and ADMIN account;
 - expose the order in the internal inbox.
 
-Order emails must contain only the public order number, a concise non-sensitive summary, and a link to the authenticated application. Billing and delivery details must be viewed only after authentication.
+The customer confirmation email must contain the public order number, the customer purchase-order number when provided, a concise order and price summary, and a link to the authenticated application. It must not contain the internal company profile or billing snapshot.
+
+The employee notification email must contain the public order number, the customer purchase-order number when provided, an order and price summary, and the complete delivery address and contact details. Employees do not need to authenticate before reading delivery details in the email. The email must also include a link to the authenticated application for the complete order and internal billing data.
 
 Email delivery failure must not roll back or remove an accepted order. Email notifications must be recorded and retried after temporary failures, and a permanent failure must be visible to an employee or administrator. The internal order inbox is the authoritative record even if email delivery fails.
 
@@ -297,7 +311,7 @@ The application uses:
 
 Passwords, raw invitation or reset tokens, email credentials, and other secrets must never be stored in version-controlled documentation or configuration.
 
-Security-relevant changes must record the acting user and timestamp, including invitations, account blocking, price changes, inventory changes, and order status changes.
+Security-relevant changes must record the acting user and timestamp, including invitations, account blocking, price or VAT-rate changes, inventory changes, and order status changes.
 
 ## User Interface
 
