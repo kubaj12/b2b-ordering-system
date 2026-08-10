@@ -23,7 +23,7 @@ Inventory is maintained manually by employees through a dedicated inventory page
 
 Each user has exactly one role:
 
-- **CUSTOMER** — may browse the catalog, maintain their cart, submit orders, view their company profile as read-only, change their password, and view only their own orders;
+- **CUSTOMER** — may browse the catalog, maintain their cart, submit orders, change their password, and view only their own orders;
 - **EMPLOYEE** — may manage customer invitations and customer accounts, catalog data, price lists, customer-specific prices, inventory, and all orders;
 - **ADMIN** — has all EMPLOYEE permissions and may additionally create, block, unblock, and manage employee accounts.
 
@@ -73,7 +73,7 @@ All pages require authentication except login, invitation acceptance, password r
 
 A `CustomerProfile` represents one company and has a one-to-one relationship with a CUSTOMER user.
 
-Employees and administrators create and edit customer profiles. Customers may view their own profile but may not edit it.
+Employees and administrators create and edit customer profiles.
 
 The profile must contain the purchaser-identification data needed by an employee to issue a standard Polish B2B invoice outside the application:
 
@@ -118,6 +118,7 @@ Data:
 - active status;
 - zero or more attribute values describing the variant;
 - creation and update timestamps.
+- optional image
 
 Quantity belongs only to the SKU. `available quantity` is the single inventory quantity field; there is no separate product quantity or second stock field. It is a non-negative integer.
 
