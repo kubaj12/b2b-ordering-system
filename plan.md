@@ -20,7 +20,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 
 **Depends on:** existing Spring Boot skeleton.
 
-- [ ] Establish top-level modules for identity/access, customers, catalog/pricing, inventory, cart/ordering, and notifications; give each module its own domain, application, persistence, and web boundaries and keep shared code limited to time, money, auditing, and web error primitives.
+- [x] Establish top-level modules for identity/access, customers, catalog/pricing, inventory, cart/ordering, and notifications; give each module its own domain, application, persistence, and web boundaries and keep shared code limited to time, money, auditing, and web error primitives.
 - [ ] Add automated architecture checks that prevent controllers or persistence adapters from bypassing module application services and prevent cyclic module dependencies.
 - [ ] Configure Flyway as the only schema-management path, disable Hibernate schema mutation, pin PostgreSQL images used by local development/tests, and document forward-only migration and rollback/recovery conventions.
 - [ ] Configure all persisted timestamps as UTC and the application display zone as `Europe/Warsaw`; introduce an injectable clock for deterministic expiration, audit, and order-number tests.
