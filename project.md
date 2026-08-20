@@ -345,6 +345,17 @@ The selected stack is:
 
 All timestamps are stored in UTC and displayed in the Europe/Warsaw time zone.
 
+## Database migrations
+
+Database changes are managed exclusively through Flyway migrations.
+
+- Applied migrations are immutable. Never modify, rename, reorder, or delete them; corrections require a new forward migration.
+- Breaking changes must follow: expand → migrate/backfill → switch application → contract.
+- Never run `flyway clean` against shared environments.
+- `flyway repair` is only for repairing Flyway schema-history metadata; it is not a rollback mechanism or a way to resolve schema drift.
+- Production schema reversals should normally use a compensating forward migration.
+- Destructive production migrations require a verified recovery point (backup, snapshot, or PITR).
+
 ## Expected Scale
 
 The application is designed for:

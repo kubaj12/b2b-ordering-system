@@ -22,7 +22,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 
 - [x] Establish top-level modules for identity/access, customers, catalog/pricing, inventory, cart/ordering, and notifications; give each module its own domain, application, persistence, and web boundaries and keep shared code limited to time, money, auditing, and web error primitives.
 - [x] Add automated architecture checks that prevent controllers or persistence adapters from bypassing module application services and prevent cyclic module dependencies.
-- [ ] Configure Flyway as the only schema-management path, disable Hibernate schema mutation, pin PostgreSQL images used by local development/tests, and document forward-only migration and rollback/recovery conventions.
+- [x] Configure Flyway as the only schema-management path, disable Hibernate schema mutation, pin PostgreSQL images used by local development/tests, and document forward-only migration and rollback/recovery conventions.
 - [ ] Configure all persisted timestamps as UTC and the application display zone as `Europe/Warsaw`; introduce an injectable clock for deterministic expiration, audit, and order-number tests.
 - [ ] Introduce a common audit-event table/service carrying event type, target, acting user, timestamp, and non-secret change metadata; domain phases below will add their required event producers.
 - [ ] Establish environment-based configuration for database, mail, image storage, base URL, cookie settings, and bootstrap credentials, with safe local/test defaults and no production secrets in the repository.
