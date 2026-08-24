@@ -1,5 +1,16 @@
 package io.github.kubaj12.online_store.architecture;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.MonthDay;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.Year;
+import java.time.YearMonth;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -12,6 +23,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -54,6 +66,41 @@ public class ModuleArchitectureTests {
 			"domain",
 			"persistence"
 	);
+	private static final Set<String> AMBIENT_NOW_TYPES = Set.of(
+			Instant.class.getName(),
+			LocalDate.class.getName(),
+			LocalDateTime.class.getName(),
+			LocalTime.class.getName(),
+			MonthDay.class.getName(),
+			OffsetDateTime.class.getName(),
+			OffsetTime.class.getName(),
+			Year.class.getName(),
+			YearMonth.class.getName(),
+			ZonedDateTime.class.getName()
+	);
+	private static final Set<String> SYSTEM_CLOCK_FACTORIES = Set.of(
+			"system",
+			"systemDefaultZone",
+			"systemUTC",
+			"tickMillis",
+			"tickMinutes",
+			"tickSeconds"
+	);
+	static final ArchCondition<JavaClass> USE_INJECTED_CLOCK = new ArchCondition<>(
+			"obtain current time only from the injected Clock"
+	) {
+		@Override
+		public void check(JavaClass javaClass, ConditionEvents events) {
+			for (JavaMethodCall methodCall : javaClass.getMethodCallsFromSelf()) {
+				if (isAmbientTimeCall(methodCall)) {
+					events.add(SimpleConditionEvent.violated(
+							methodCall,
+							"Ambient time source: " + methodCall.getDescription()
+					));
+				}
+			}
+		}
+	};
 
 	@ArchTest
 	public static final ArchRule BASE_PACKAGE_CONTAINS_ONLY_DECLARED_NAMESPACES = classes()
@@ -167,6 +214,13 @@ public class ModuleArchitectureTests {
 			.should().dependOnClassesThat().resideInAnyPackage(featureModulePackagePatterns());
 
 	@ArchTest
+	public static final ArchRule PRODUCTION_CODE_USES_THE_INJECTED_CLOCK = classes()
+			.that().resideInAnyPackage(featureAndSharedPackagePatterns())
+			.and().doNotHaveSimpleName("package-info")
+			.should(USE_INJECTED_CLOCK)
+			.allowEmptyShould(true);
+
+	@ArchTest
 	public static final ArchRule COMPOSITION_ROOT_DEPENDENCIES_ARE_ONE_WAY = noClasses()
 			.that().resideInAnyPackage(featureAndSharedPackagePatterns())
 			.should().dependOnClassesThat().resideInAPackage(BASE_PACKAGE);
@@ -242,6 +296,23 @@ public class ModuleArchitectureTests {
 			case "persistence" -> Set.of("persistence", "application", "domain").contains(targetLayer);
 			default -> false;
 		};
+	}
+
+	private static boolean isAmbientTimeCall(JavaMethodCall methodCall) {
+		String ownerName = methodCall.getTargetOwner().getName();
+		String methodName = methodCall.getName();
+
+		if (AMBIENT_NOW_TYPES.contains(ownerName) && "now".equals(methodName)) {
+			List<JavaClass> parameterTypes = methodCall.getTarget().getRawParameterTypes();
+			return parameterTypes.size() != 1
+					|| !Clock.class.getName().equals(parameterTypes.getFirst().getName());
+		}
+
+		if (System.class.getName().equals(ownerName) && "currentTimeMillis".equals(methodName)) {
+			return true;
+		}
+
+		return Clock.class.getName().equals(ownerName) && SYSTEM_CLOCK_FACTORIES.contains(methodName);
 	}
 
 	private static boolean isAllowedDomainDependency(JavaClass originClass, JavaClass targetClass) {
