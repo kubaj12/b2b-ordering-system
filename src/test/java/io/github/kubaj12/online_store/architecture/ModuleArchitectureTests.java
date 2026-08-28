@@ -36,6 +36,7 @@ import com.tngtech.archunit.library.dependencies.SliceAssignment;
 import com.tngtech.archunit.library.dependencies.SliceIdentifier;
 
 import io.github.kubaj12.online_store.OnlineStoreApplication;
+import io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.MappedSuperclass;
@@ -212,6 +213,27 @@ public class ModuleArchitectureTests {
 	public static final ArchRule SHARED_KERNEL_DOES_NOT_DEPEND_ON_FEATURE_MODULES = noClasses()
 			.that().resideInAPackage(SHARED_PACKAGE + "..")
 			.should().dependOnClassesThat().resideInAnyPackage(featureModulePackagePatterns());
+
+	@ArchTest
+	public static final ArchRule ONLY_APPLICATION_SERVICES_RECORD_AUDIT_EVENTS = classes()
+			.that().resideInAnyPackage(featureModulePackagePatterns())
+			.should(new ArchCondition<JavaClass>("access the audit recorder only from an application layer") {
+				@Override
+				public void check(JavaClass javaClass, ConditionEvents events) {
+					if (layerOf(javaClass).filter("application"::equals).isPresent()) {
+						return;
+					}
+
+					for (Dependency dependency : javaClass.getDirectDependenciesFromSelf()) {
+						if (dependency.getTargetClass().isEquivalentTo(AuditEventRecorder.class)) {
+							events.add(violation(
+									dependency,
+									"Audit boundary bypass: " + dependency.getDescription()
+							));
+						}
+					}
+				}
+			});
 
 	@ArchTest
 	public static final ArchRule PRODUCTION_CODE_USES_THE_INJECTED_CLOCK = classes()

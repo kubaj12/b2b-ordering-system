@@ -25,7 +25,7 @@ class OnlineStoreApplicationTests {
 		var migrationInfo = flyway.info();
 
 		assertThat(migrationInfo.current()).isNotNull();
-		assertThat(migrationInfo.current().getVersion()).isEqualTo(MigrationVersion.fromVersion("001"));
+		assertThat(migrationInfo.current().getVersion()).isEqualTo(MigrationVersion.fromVersion("002"));
 		assertThat(migrationInfo.pending()).isEmpty();
 		assertThat(postgresContainer.getDockerImageName()).isEqualTo(TestcontainersConfiguration.POSTGRES_IMAGE);
 	}
