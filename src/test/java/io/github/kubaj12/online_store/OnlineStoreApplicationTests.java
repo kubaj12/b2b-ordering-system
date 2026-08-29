@@ -5,13 +5,18 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.web.server.Cookie;
+import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.context.annotation.Import;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@ActiveProfiles("test")
+@SpringBootTest(properties = "spring.datasource.url=jdbc:postgresql://127.0.0.1:1/service_connection_must_win")
 class OnlineStoreApplicationTests {
 
 	@Autowired
@@ -19,6 +24,21 @@ class OnlineStoreApplicationTests {
 
 	@Autowired
 	private PostgreSQLContainer postgresContainer;
+
+	@Autowired
+	private ApplicationMailProperties mailProperties;
+
+	@Autowired
+	private ImageStorageProperties imageStorageProperties;
+
+	@Autowired
+	private BootstrapAdminProperties bootstrapAdminProperties;
+
+	@Autowired
+	private ServerProperties serverProperties;
+
+	@Autowired
+	private JavaMailSender mailSender;
 
 	@Test
 	void startsFromAnEmptyDatabaseAtTheLatestMigration() {
@@ -28,6 +48,16 @@ class OnlineStoreApplicationTests {
 		assertThat(migrationInfo.current().getVersion()).isEqualTo(MigrationVersion.fromVersion("002"));
 		assertThat(migrationInfo.pending()).isEmpty();
 		assertThat(postgresContainer.getDockerImageName()).isEqualTo(TestcontainersConfiguration.POSTGRES_IMAGE);
+		assertThat(mailSender).isNotNull();
+		assertThat(mailProperties.deliveryEnabled()).isFalse();
+		assertThat(imageStorageProperties.root()).isAbsolute();
+		assertThat(bootstrapAdminProperties.enabled()).isFalse();
+
+		var sessionCookie = serverProperties.getServlet().getSession().getCookie();
+		assertThat(sessionCookie.getName()).isEqualTo("B2BSESSION");
+		assertThat(sessionCookie.getSecure()).isFalse();
+		assertThat(sessionCookie.getHttpOnly()).isTrue();
+		assertThat(sessionCookie.getSameSite()).isEqualTo(Cookie.SameSite.LAX);
 	}
 
 }

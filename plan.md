@@ -25,7 +25,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 - [x] Configure Flyway as the only schema-management path, disable Hibernate schema mutation, pin PostgreSQL images used by local development/tests, and document forward-only migration and rollback/recovery conventions.
 - [x] Configure all persisted timestamps as UTC and the application display zone as `Europe/Warsaw`; introduce an injectable clock for deterministic expiration, audit, and order-number tests.
 - [x] Introduce a common audit-event table/service carrying event type, target, acting user, timestamp, and non-secret change metadata; domain phases below will add their required event producers.
-- [ ] Establish environment-based configuration for database, mail, image storage, base URL, cookie settings, and bootstrap credentials, with safe local/test defaults and no production secrets in the repository.
+- [x] Establish environment-based configuration for database, mail, image storage, base URL, cookie settings, and bootstrap credentials, with safe local/test defaults and no production secrets in the repository.
 - [ ] Build the shared Polish Thymeleaf layout, Bootstrap/HTMX asset setup, navigation by role, form-error components, pagination components, accessible flash messages, and localized `404`, `403`, validation, conflict, and unexpected-error handling.
 - [ ] Standardize full-page and HTMX request handling so both paths use the same application services, validation, authorization, CSRF checks, and error semantics; do not create a public API layer.
 - [ ] Extend the existing PostgreSQL Testcontainers setup with migration tests, reusable repository/service fixtures, Spring MVC security tests, and deterministic mail/image test adapters.

@@ -2,9 +2,9 @@ services:
   postgres:
     image: 'postgres:18.4-bookworm'
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      - 'POSTGRES_DB=${B2B_LOCAL_DB_NAME:-online_store}'
+      - 'POSTGRES_PASSWORD=${B2B_LOCAL_DB_PASSWORD:-local-development-only}'
+      - 'POSTGRES_USER=${B2B_LOCAL_DB_USERNAME:-online_store}'
       - 'TZ=UTC'
     ports:
       - '5432'

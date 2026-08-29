@@ -5,6 +5,12 @@ target/
 !**/src/test/**/target/
 .report
 
+### Local configuration and runtime data ###
+.env
+.env.*
+!.env.example
+/var/
+
 ### STS ###
 .apt_generated
 .classpath

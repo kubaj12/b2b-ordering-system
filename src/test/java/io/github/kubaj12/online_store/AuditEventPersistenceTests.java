@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Import({TestcontainersConfiguration.class, AuditEventPersistenceTests.FixedClockConfiguration.class})
+@ActiveProfiles("test")
 @SpringBootTest
 class AuditEventPersistenceTests {
 
