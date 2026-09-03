@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pl"
+      xmlns:th="http://www.thymeleaf.org"
+      th:fragment="layout(pageTitle, activeNavigation, content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${pageTitle == null ? #messages.msg('app.name') : pageTitle + ' – ' + #messages.msg('app.name')}">
+        Zamówienia B2B
+    </title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/application.css}">
+    <script defer th:src="@{/webjars/htmx.org/dist/htmx.min.js}"></script>
+    <script defer th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+    <script defer th:src="@{/js/application.js}"></script>
+</head>
+<body class="d-flex min-vh-100 flex-column bg-body-tertiary">
+<a class="skip-link" href="#main-content" th:text="#{navigation.skip-to-content}">Przejdź do treści</a>
+
+<header th:replace="~{fragments/navigation :: navigation(${activeNavigation})}"></header>
+
+<main id="main-content" class="container flex-grow-1 py-4" tabindex="-1">
+    <div th:replace="~{fragments/flash-messages :: flashMessages}"></div>
+    <th:block th:replace="${content}"></th:block>
+</main>
+
+<footer class="border-top bg-body py-3">
+    <div class="container text-body-secondary small" th:text="#{app.footer}">
+        System zamówień dla klientów biznesowych
+    </div>
+</footer>
+</body>
+</html>

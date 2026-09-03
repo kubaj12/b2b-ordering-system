@@ -26,7 +26,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 - [x] Configure all persisted timestamps as UTC and the application display zone as `Europe/Warsaw`; introduce an injectable clock for deterministic expiration, audit, and order-number tests.
 - [x] Introduce a common audit-event table/service carrying event type, target, acting user, timestamp, and non-secret change metadata; domain phases below will add their required event producers.
 - [x] Establish environment-based configuration for database, mail, image storage, base URL, cookie settings, and bootstrap credentials, with safe local/test defaults and no production secrets in the repository.
-- [ ] Build the shared Polish Thymeleaf layout, Bootstrap/HTMX asset setup, navigation by role, form-error components, pagination components, accessible flash messages, and localized `404`, `403`, validation, conflict, and unexpected-error handling.
+- [x] Build the shared Polish Thymeleaf layout, Bootstrap/HTMX asset setup, navigation by role, form-error components, pagination components, accessible flash messages, and localized `404`, `403`, validation, conflict, and unexpected-error handling.
 - [ ] Standardize full-page and HTMX request handling so both paths use the same application services, validation, authorization, CSRF checks, and error semantics; do not create a public API layer.
 - [ ] Extend the existing PostgreSQL Testcontainers setup with migration tests, reusable repository/service fixtures, Spring MVC security tests, and deterministic mail/image test adapters.
 - [ ] Add continuous verification for compilation, unit tests, PostgreSQL integration tests, MVC/template tests, architecture checks, and migration-from-empty-database checks.

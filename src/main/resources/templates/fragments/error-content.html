@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section th:fragment="errorContent(statusCode, title, defaultMessage)" class="mx-auto py-5 text-center error-page">
+    <p class="display-1 fw-semibold text-body-secondary" aria-hidden="true" th:text="${statusCode}">500</p>
+    <h1 class="h2" th:text="${title}">Wystąpił błąd</h1>
+    <p class="lead" th:text="${errorMessage != null ? errorMessage : defaultMessage}">Spróbuj ponownie.</p>
+    <p class="text-body-secondary small" th:if="${errorReference != null}"
+       th:text="#{error.reference(${errorReference})}">Identyfikator błędu</p>
+    <a class="btn btn-primary" th:href="@{/}" th:text="#{error.back-home}">Wróć na stronę główną</a>
+</section>
+</body>
+</html>

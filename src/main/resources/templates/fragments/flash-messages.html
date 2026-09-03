@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="flashMessages" id="flash-messages" class="mb-4"
+     th:if="${flashSuccessMessage != null or flashInfoMessage != null or flashWarningMessage != null or flashErrorMessage != null}">
+    <div class="alert alert-success" role="status" aria-live="polite" aria-atomic="true"
+         th:if="${flashSuccessMessage != null}" th:text="${flashSuccessMessage}">Operacja zakończona powodzeniem.</div>
+    <div class="alert alert-info" role="status" aria-live="polite" aria-atomic="true"
+         th:if="${flashInfoMessage != null}" th:text="${flashInfoMessage}">Informacja.</div>
+    <div class="alert alert-warning" role="alert" aria-live="assertive" aria-atomic="true"
+         th:if="${flashWarningMessage != null}" th:text="${flashWarningMessage}">Ostrzeżenie.</div>
+    <div class="alert alert-danger" role="alert" aria-live="assertive" aria-atomic="true"
+         th:if="${flashErrorMessage != null}" th:text="${flashErrorMessage}">Wystąpił błąd.</div>
+</div>
+</body>
+</html>

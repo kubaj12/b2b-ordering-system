@@ -28,6 +28,8 @@
 	</scm>
 	<properties>
 		<archunit.version>1.4.2</archunit.version>
+		<bootstrap.version>5.3.8</bootstrap.version>
+		<htmx.version>2.0.10</htmx.version>
 		<java.version>25</java.version>
 	</properties>
 	<dependencies>
@@ -66,6 +68,20 @@
 		<dependency>
 			<groupId>org.thymeleaf.extras</groupId>
 			<artifactId>thymeleaf-extras-springsecurity6</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>bootstrap</artifactId>
+			<version>${bootstrap.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.webjars.npm</groupId>
+			<artifactId>htmx.org</artifactId>
+			<version>${htmx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>webjars-locator-lite</artifactId>
 		</dependency>
 
 		<dependency>

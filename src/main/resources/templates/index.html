@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/application :: layout(#{home.title}, 'home', ~{::#page-content})}">
+<body>
+<section id="page-content" class="bg-body border rounded-3 p-4 shadow-sm">
+    <h1 class="h2" th:text="#{home.heading}">Witaj w systemie zamówień B2B</h1>
+    <p class="mb-0" sec:authorize="isAuthenticated()" th:text="#{home.authenticated}">
+        Skorzystaj z nawigacji, aby przejść do dostępnych funkcji.
+    </p>
+    <p class="mb-0" sec:authorize="isAnonymous()" th:text="#{home.anonymous}">
+        Zaloguj się, aby skorzystać z systemu.
+    </p>
+</section>
+</body>
+</html>

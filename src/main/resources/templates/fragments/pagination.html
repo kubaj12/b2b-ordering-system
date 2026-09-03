@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="pagination(page, path, retainedParameters)"
+     th:if="${page != null and page.totalPages > 1}"
+     th:attr="aria-label=#{pagination.navigation}"
+     th:with="lastPage=${page.totalPages - 1},
+              currentPage=${page.number < 0 ? 0 : (page.number > lastPage ? lastPage : page.number)},
+              startPage=${currentPage > 2 ? currentPage - 2 : 0},
+              endPage=${currentPage < lastPage - 2 ? currentPage + 2 : lastPage}">
+    <ul class="pagination flex-wrap">
+        <li class="page-item" th:classappend="${currentPage == 0} ? ' disabled' : ''">
+            <span class="page-link" aria-disabled="true" th:if="${currentPage == 0}" th:text="#{pagination.previous}">Poprzednia</span>
+            <form method="get" th:action="@{${path}}" th:unless="${currentPage == 0}">
+                <th:block th:replace="~{fragments/pagination :: retainedFields(${retainedParameters})}"></th:block>
+                <input type="hidden" name="size" th:value="${page.size}">
+                <button class="page-link" type="submit" name="page" th:value="${currentPage - 1}"
+                        th:text="#{pagination.previous}">Poprzednia</button>
+            </form>
+        </li>
+
+        <li class="page-item" th:if="${startPage > 0}">
+            <form method="get" th:action="@{${path}}">
+                <th:block th:replace="~{fragments/pagination :: retainedFields(${retainedParameters})}"></th:block>
+                <input type="hidden" name="size" th:value="${page.size}">
+                <button class="page-link" type="submit" name="page" value="0"
+                        th:attr="aria-label=#{pagination.first}">1</button>
+            </form>
+        </li>
+        <li class="page-item disabled" th:if="${startPage > 1}">
+            <span class="page-link" aria-hidden="true">…</span>
+            <span class="visually-hidden" th:text="#{pagination.more-pages}">Więcej stron</span>
+        </li>
+
+        <th:block th:each="pageNumber : ${#numbers.sequence(startPage, endPage)}">
+            <li class="page-item active" th:if="${pageNumber == currentPage}">
+                <span class="page-link" aria-current="page"
+                      th:attr="aria-label=#{pagination.current-page(${pageNumber + 1})}"
+                      th:text="${pageNumber + 1}">1</span>
+            </li>
+            <li class="page-item" th:unless="${pageNumber == currentPage}">
+                <form method="get" th:action="@{${path}}">
+                    <th:block th:replace="~{fragments/pagination :: retainedFields(${retainedParameters})}"></th:block>
+                    <input type="hidden" name="size" th:value="${page.size}">
+                    <button class="page-link" type="submit" name="page" th:value="${pageNumber}"
+                            th:attr="aria-label=#{pagination.go-to-page(${pageNumber + 1})}"
+                            th:text="${pageNumber + 1}">1</button>
+                </form>
+            </li>
+        </th:block>
+
+        <li class="page-item disabled" th:if="${endPage < lastPage - 1}">
+            <span class="page-link" aria-hidden="true">…</span>
+            <span class="visually-hidden" th:text="#{pagination.more-pages}">Więcej stron</span>
+        </li>
+        <li class="page-item" th:if="${endPage < lastPage}">
+            <form method="get" th:action="@{${path}}">
+                <th:block th:replace="~{fragments/pagination :: retainedFields(${retainedParameters})}"></th:block>
+                <input type="hidden" name="size" th:value="${page.size}">
+                <button class="page-link" type="submit" name="page" th:value="${lastPage}"
+                        th:attr="aria-label=#{pagination.last}" th:text="${lastPage + 1}">2</button>
+            </form>
+        </li>
+
+        <li class="page-item" th:classappend="${currentPage == lastPage} ? ' disabled' : ''">
+            <span class="page-link" aria-disabled="true" th:if="${currentPage == lastPage}" th:text="#{pagination.next}">Następna</span>
+            <form method="get" th:action="@{${path}}" th:unless="${currentPage == lastPage}">
+                <th:block th:replace="~{fragments/pagination :: retainedFields(${retainedParameters})}"></th:block>
+                <input type="hidden" name="size" th:value="${page.size}">
+                <button class="page-link" type="submit" name="page" th:value="${currentPage + 1}"
+                        th:text="#{pagination.next}">Następna</button>
+            </form>
+        </li>
+    </ul>
+</nav>
+
+<th:block th:fragment="retainedFields(retainedParameters)" th:if="${retainedParameters != null}">
+    <th:block th:each="parameter : ${retainedParameters}">
+        <input th:each="parameterValue : ${parameter.value}" type="hidden"
+               th:name="${parameter.key}" th:value="${parameterValue}">
+    </th:block>
+</th:block>
+</body>
+</html>

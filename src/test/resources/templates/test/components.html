@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout('Komponenty', null, ~{::#page-content})}">
+<body>
+<section id="page-content">
+    <form th:object="${exampleForm}">
+        <div th:replace="~{fragments/forms :: errorSummary}"></div>
+
+        <label class="form-label" for="name">Nazwa</label>
+        <input id="name" class="form-control" th:field="*{name}"
+               th:classappend="${#fields.hasErrors('name')} ? ' is-invalid' : ''"
+               th:attr="aria-invalid=${#fields.hasErrors('name')} ? 'true' : null,
+                        aria-describedby=${#fields.hasErrors('name')} ? 'name-errors' : null">
+        <div th:replace="~{fragments/forms :: fieldErrors('name')}"></div>
+    </form>
+
+    <div th:replace="~{fragments/pagination :: pagination(${resultPage}, '/test/components', ${retainedParameters})}"></div>
+</section>
+</body>
+</html>

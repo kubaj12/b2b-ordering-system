@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<header th:fragment="navigation(activeNavigation)" class="border-bottom bg-body shadow-sm">
+    <nav class="navbar navbar-expand-lg" th:attr="aria-label=#{navigation.main}">
+        <div class="container">
+            <a class="navbar-brand fw-semibold" th:href="@{/}" th:text="#{app.name}">Zamówienia B2B</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#primary-navigation"
+                    aria-controls="primary-navigation" aria-expanded="false" th:attr="aria-label=#{navigation.toggle}">
+                <span class="navbar-toggler-icon" aria-hidden="true"></span>
+            </button>
+
+            <div id="primary-navigation" class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" th:classappend="${activeNavigation == 'home'} ? ' active' : ''"
+                           th:attr="aria-current=${activeNavigation == 'home'} ? 'page' : null"
+                           th:href="@{/}" th:text="#{navigation.home}">Strona główna</a>
+                    </li>
+
+                    <th:block sec:authorize="hasRole('CUSTOMER')">
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'customer-catalog'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'customer-catalog'} ? 'page' : null"
+                               th:href="@{/catalog}" th:text="#{navigation.customer.catalog}">Katalog</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'customer-cart'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'customer-cart'} ? 'page' : null"
+                               th:href="@{/cart}" th:text="#{navigation.customer.cart}">Koszyk</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'customer-orders'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'customer-orders'} ? 'page' : null"
+                               th:href="@{/orders}" th:text="#{navigation.customer.orders}">Moje zamówienia</a>
+                        </li>
+                    </th:block>
+
+                    <th:block sec:authorize="hasAnyRole('EMPLOYEE', 'ADMIN')">
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'staff-customers'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'staff-customers'} ? 'page' : null"
+                               th:href="@{/staff/customers}" th:text="#{navigation.staff.customers}">Klienci</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'staff-catalog'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'staff-catalog'} ? 'page' : null"
+                               th:href="@{/staff/catalog}" th:text="#{navigation.staff.catalog}">Katalog</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'staff-price-lists'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'staff-price-lists'} ? 'page' : null"
+                               th:href="@{/staff/price-lists}" th:text="#{navigation.staff.price-lists}">Cenniki</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'staff-inventory'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'staff-inventory'} ? 'page' : null"
+                               th:href="@{/staff/inventory}" th:text="#{navigation.staff.inventory}">Magazyn</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:classappend="${activeNavigation == 'staff-orders'} ? ' active' : ''"
+                               th:attr="aria-current=${activeNavigation == 'staff-orders'} ? 'page' : null"
+                               th:href="@{/staff/orders}" th:text="#{navigation.staff.orders}">Zamówienia</a>
+                        </li>
+                    </th:block>
+
+                    <li class="nav-item" sec:authorize="hasRole('ADMIN')">
+                        <a class="nav-link" th:classappend="${activeNavigation == 'admin-employees'} ? ' active' : ''"
+                           th:attr="aria-current=${activeNavigation == 'admin-employees'} ? 'page' : null"
+                           th:href="@{/admin/employees}" th:text="#{navigation.admin.employees}">Pracownicy</a>
+                    </li>
+                </ul>
+
+                <div class="d-flex flex-column align-items-lg-end gap-1" sec:authorize="isAuthenticated()">
+                    <span class="navbar-text py-0 small"
+                          th:text="#{navigation.signed-in-as(${#authentication.name})}">Zalogowano</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <a class="btn btn-sm btn-outline-secondary" th:href="@{/account/password}"
+                           th:text="#{navigation.account}">Zmień hasło</a>
+                        <form th:action="@{/logout}" method="post">
+                            <button class="btn btn-sm btn-outline-danger" type="submit"
+                                    th:text="#{navigation.logout}">Wyloguj się</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+</body>
+</html>

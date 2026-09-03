@@ -1,0 +1,51 @@
+:root {
+    --application-focus-color: #0a58ca;
+}
+
+.skip-link {
+    background: var(--bs-body-bg);
+    border: 2px solid var(--application-focus-color);
+    border-radius: var(--bs-border-radius);
+    color: var(--bs-body-color);
+    left: 1rem;
+    padding: .5rem .75rem;
+    position: fixed;
+    top: 1rem;
+    transform: translateY(-200%);
+    transition: transform .15s ease-in-out;
+    z-index: 1100;
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
+:focus-visible {
+    outline: 3px solid var(--application-focus-color);
+    outline-offset: 3px;
+}
+
+#main-content:focus {
+    outline: none;
+}
+
+.navbar .nav-link.active {
+    font-weight: 600;
+}
+
+.pagination .page-item form {
+    height: 100%;
+}
+
+.error-page {
+    max-width: 42rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+    }
+}

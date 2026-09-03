@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout(#{error.500.title}, null, ~{::#error-page})}">
+<body>
+<section id="error-page"
+         th:replace="~{fragments/error-content :: errorContent(${status != null ? status : 500}, #{error.500.title}, #{error.500.message})}">
+</section>
+</body>
+</html>
