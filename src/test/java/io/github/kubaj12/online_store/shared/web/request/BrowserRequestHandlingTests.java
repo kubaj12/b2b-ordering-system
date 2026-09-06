@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -13,7 +12,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import io.github.kubaj12.online_store.identityaccess.web.BrowserSecurityConfiguration;
+import io.github.kubaj12.online_store.testsupport.BrowserMvcTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -24,12 +23,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest({ BrowserRequestTestController.class, AnonymousBrowserRouteTestController.class })
-@Import({
-	BrowserWebConfiguration.class,
-	BrowserSecurityConfiguration.class,
-	BrowserRequestTestApplicationService.class
+@BrowserMvcTest(controllers = {
+	BrowserRequestTestController.class,
+	AnonymousBrowserRouteTestController.class
 })
+@Import(BrowserRequestTestApplicationService.class)
 class BrowserRequestHandlingTests {
 
 	@Autowired

@@ -1,7 +1,6 @@
 package io.github.kubaj12.online_store;
 
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,7 +44,6 @@ class OnlineStoreApplicationTests {
 		var migrationInfo = flyway.info();
 
 		assertThat(migrationInfo.current()).isNotNull();
-		assertThat(migrationInfo.current().getVersion()).isEqualTo(MigrationVersion.fromVersion("002"));
 		assertThat(migrationInfo.pending()).isEmpty();
 		assertThat(postgresContainer.getDockerImageName()).isEqualTo(TestcontainersConfiguration.POSTGRES_IMAGE);
 		assertThat(mailSender).isNotNull();

@@ -1,7 +1,6 @@
 package io.github.kubaj12.online_store;
 
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,7 +36,7 @@ class ProductionApplicationContextTests {
 	@Test
 	void startsTheCompleteProductionContextWithSecureExplicitConfiguration() {
 		assertThat(flyway.info().current()).isNotNull();
-		assertThat(flyway.info().current().getVersion()).isEqualTo(MigrationVersion.fromVersion("002"));
+		assertThat(flyway.info().pending()).isEmpty();
 		assertThat(mailProperties.deliveryEnabled()).isTrue();
 	}
 

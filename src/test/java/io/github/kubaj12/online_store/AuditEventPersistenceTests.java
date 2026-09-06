@@ -1,7 +1,6 @@
 package io.github.kubaj12.online_store;
 
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -11,14 +10,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -29,14 +22,12 @@ import io.github.kubaj12.online_store.shared.auditing.AuditEventType;
 import io.github.kubaj12.online_store.shared.auditing.AuditField;
 import io.github.kubaj12.online_store.shared.auditing.AuditFieldChange;
 import io.github.kubaj12.online_store.shared.auditing.AuditTargetType;
+import io.github.kubaj12.online_store.testsupport.PostgreSqlServiceTestSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@Import({TestcontainersConfiguration.class, AuditEventPersistenceTests.FixedClockConfiguration.class})
-@ActiveProfiles("test")
-@SpringBootTest
-class AuditEventPersistenceTests {
+class AuditEventPersistenceTests extends PostgreSqlServiceTestSupport {
 
 	private static final Instant RECORDED_AT = Instant.parse("2026-08-24T12:34:56.123456Z");
 	private static final UUID ACTING_USER_ID = UUID.fromString("f552e38c-cf2e-4be7-a96c-65b495dd28ea");
@@ -75,8 +66,8 @@ class AuditEventPersistenceTests {
 	private TransactionTemplate transactionTemplate;
 
 	@BeforeEach
-	void clearAuditEvents() {
-		jdbcTemplate.update("DELETE FROM audit_event");
+	void setAuditClock() {
+		testClock().set(RECORDED_AT);
 	}
 
 	@Test
@@ -262,17 +253,6 @@ class AuditEventPersistenceTests {
 			String newPrice,
 			String newVatRate
 	) {
-	}
-
-	@TestConfiguration(proxyBeanMethods = false)
-	static class FixedClockConfiguration {
-
-		@Bean
-		@Primary
-		Clock fixedAuditClock() {
-			return Clock.fixed(RECORDED_AT, ZoneOffset.UTC);
-		}
-
 	}
 
 }

@@ -6,18 +6,13 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+
+import io.github.kubaj12.online_store.testsupport.PostgreSqlRepositoryTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import(TestcontainersConfiguration.class)
-@ActiveProfiles("test")
-@SpringBootTest
-@Transactional
+@PostgreSqlRepositoryTest
 class UtcTimestampPersistenceTests {
 
 	@Autowired

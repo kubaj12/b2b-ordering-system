@@ -26,8 +26,8 @@ not marked `Secure` so it works over local HTTP. `HttpOnly` and `SameSite=Lax` a
 `B2B_MAIL_DELIVERY_ENABLED=false` means that notification delivery must make no SMTP connection.
 The notification module will use this switch when its delivery adapter is implemented. To inspect
 messages with a local SMTP catcher such as Mailpit, explicitly set delivery enabled to `true` and
-keep the host and port pointed at the local catcher. Automated tests keep delivery disabled; the
-notification foundation will use a deterministic fake adapter rather than SMTP.
+keep the host and port pointed at the local catcher. Automated tests keep delivery disabled and use
+a deterministic recording adapter rather than SMTP.
 
 Tests continue to use the pinned PostgreSQL Testcontainer. Its service connection overrides
 ordinary datasource properties, so tests do not depend on local or production database values.
