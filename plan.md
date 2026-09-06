@@ -29,7 +29,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 - [x] Build the shared Polish Thymeleaf layout, Bootstrap/HTMX asset setup, navigation by role, form-error components, pagination components, accessible flash messages, and localized `404`, `403`, validation, conflict, and unexpected-error handling.
 - [x] Standardize full-page and HTMX request handling so both paths use the same application services, validation, authorization, CSRF checks, and error semantics; do not create a public API layer.
 - [x] Extend the existing PostgreSQL Testcontainers setup with migration tests, reusable repository/service fixtures, Spring MVC security tests, and deterministic mail/image test adapters.
-- [ ] Add continuous verification for compilation, unit tests, PostgreSQL integration tests, MVC/template tests, architecture checks, and migration-from-empty-database checks.
+- [x] Add continuous verification for compilation, unit tests, PostgreSQL integration tests, MVC/template tests, architecture checks, and migration-from-empty-database checks.
 
 **Completion outcome:** The application starts from an empty PostgreSQL database through Flyway, renders a Polish responsive shell and safe errors, enforces module boundaries, and has a repeatable automated verification pipeline ready for feature slices.
 

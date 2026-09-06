@@ -1,6 +1,7 @@
 package io.github.kubaj12.online_store;
 
 import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,6 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("postgresql")
 @Import(TestcontainersConfiguration.class)
 @ActiveProfiles("production")
 @SpringBootTest(properties = {

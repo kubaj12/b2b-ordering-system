@@ -26,6 +26,7 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTag;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
@@ -49,6 +50,7 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 		packagesOf = OnlineStoreApplication.class,
 		importOptions = ImportOption.DoNotIncludeTests.class
 )
+@ArchTag("architecture")
 public class ModuleArchitectureTests {
 
 	private static final String BASE_PACKAGE = "io.github.kubaj12.online_store";

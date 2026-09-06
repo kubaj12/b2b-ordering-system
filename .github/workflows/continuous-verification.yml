@@ -1,0 +1,89 @@
+name: Continuous Verification
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compilation:
+    name: Compilation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: pom.xml
+
+      - name: Compile production and test sources
+        run: ./mvnw --batch-mode --no-transfer-progress test-compile
+
+  tests:
+    name: ${{ matrix.category }}
+    runs-on: ubuntu-24.04
+    needs: compilation
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - category: Unit tests
+            profile: unit-tests
+            artifact: surefire-unit-tests
+          - category: PostgreSQL integration tests
+            profile: postgresql-integration-tests
+            artifact: surefire-postgresql-integration-tests
+          - category: MVC and template tests
+            profile: mvc-template-tests
+            artifact: surefire-mvc-template-tests
+          - category: Architecture checks
+            profile: architecture-checks
+            artifact: surefire-architecture-checks
+          - category: Empty-database migrations
+            profile: migration-checks
+            artifact: surefire-migration-checks
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: pom.xml
+
+      - name: Run ${{ matrix.category }}
+        run: ./mvnw --batch-mode --no-transfer-progress -P${{ matrix.profile }} test
+
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/surefire-reports
+          retention-days: 7
+          if-no-files-found: ignore

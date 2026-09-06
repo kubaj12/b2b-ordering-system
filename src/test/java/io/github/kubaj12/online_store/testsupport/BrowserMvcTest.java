@@ -7,6 +7,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.junit.jupiter.api.Tag;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AliasFor;
@@ -19,6 +20,7 @@ import io.github.kubaj12.online_store.shared.web.request.BrowserWebConfiguration
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Inherited
+@Tag("mvc")
 @WebMvcTest
 @Import({BrowserWebConfiguration.class, BrowserSecurityConfiguration.class})
 public @interface BrowserMvcTest {

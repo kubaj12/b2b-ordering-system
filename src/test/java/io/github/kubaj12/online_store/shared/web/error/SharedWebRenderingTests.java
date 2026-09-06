@@ -3,6 +3,7 @@ package io.github.kubaj12.online_store.shared.web.error;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.web.ErrorProperties.IncludeAttribute;
@@ -18,6 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Tag("mvc")
 @WebMvcTest(SharedWebTestController.class)
 class SharedWebRenderingTests {
 

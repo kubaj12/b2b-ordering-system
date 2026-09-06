@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Year;
 import java.time.ZoneId;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -12,6 +13,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@Tag("architecture")
 class InjectedClockArchitectureTests {
 
 	@Test
