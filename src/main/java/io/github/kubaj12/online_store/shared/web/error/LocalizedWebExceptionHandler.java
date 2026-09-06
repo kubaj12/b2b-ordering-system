@@ -5,9 +5,12 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 
 import org.slf4j.Logger;
@@ -27,6 +30,9 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import io.github.kubaj12.online_store.shared.web.request.BrowserResponse;
+import io.github.kubaj12.online_store.shared.web.request.HtmxRequest;
+
 @ControllerAdvice
 public final class LocalizedWebExceptionHandler {
 
@@ -39,23 +45,45 @@ public final class LocalizedWebExceptionHandler {
 	}
 
 	@ExceptionHandler(WebErrorException.class)
-	ModelAndView handleExpectedError(WebErrorException exception, Locale locale) {
+	ModelAndView handleExpectedError(
+			WebErrorException exception,
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
 		return errorView(
 				exception.status(),
 				exception.messageCode(),
 				exception.messageArguments(),
-				locale
+				locale,
+				request,
+				response
 		);
 	}
 
 	@ExceptionHandler(AccessDeniedException.class)
-	ModelAndView handleAccessDenied(Locale locale) {
-		return errorView(HttpStatus.FORBIDDEN, "error.403.message", new Object[0], locale);
+	ModelAndView handleAccessDenied(
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
+		return forbiddenView(locale, request, response);
 	}
 
 	@ExceptionHandler({ NoHandlerFoundException.class, NoResourceFoundException.class })
-	ModelAndView handleNotFound(Locale locale) {
-		return errorView(HttpStatus.NOT_FOUND, "error.404.message", new Object[0], locale);
+	ModelAndView handleNotFound(
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
+		return errorView(
+				HttpStatus.NOT_FOUND,
+				"error.404.message",
+				new Object[0],
+				locale,
+				request,
+				response
+		);
 	}
 
 	@ExceptionHandler({
@@ -64,33 +92,83 @@ public final class LocalizedWebExceptionHandler {
 			MethodArgumentTypeMismatchException.class,
 			MissingServletRequestParameterException.class
 	})
-	ModelAndView handleRequestValidation(Locale locale) {
-		return errorView(HttpStatus.BAD_REQUEST, "error.400.message", new Object[0], locale);
+	ModelAndView handleRequestValidation(
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
+		return errorView(
+				HttpStatus.BAD_REQUEST,
+				"error.400.message",
+				new Object[0],
+				locale,
+				request,
+				response
+		);
 	}
 
 	@ExceptionHandler(HandlerMethodValidationException.class)
-	ModelAndView handleMethodValidation(HandlerMethodValidationException exception, Locale locale) {
+	ModelAndView handleMethodValidation(
+			HandlerMethodValidationException exception,
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
 		if (exception.isForReturnValue()) {
-			return unexpectedErrorView(exception, exception.getStatusCode(), locale);
+			return unexpectedErrorView(exception, exception.getStatusCode(), locale, request, response);
 		}
-		return frameworkErrorView(exception.getStatusCode(), locale);
+		return frameworkErrorView(exception.getStatusCode(), locale, request, response);
 	}
 
 	@ExceptionHandler(RuntimeException.class)
-	ModelAndView handleUnexpected(RuntimeException exception, Locale locale) {
+	ModelAndView handleUnexpected(
+			RuntimeException exception,
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
 		if (exception instanceof ErrorResponse errorResponse) {
 			if (errorResponse.getStatusCode().is5xxServerError()) {
-				return unexpectedErrorView(exception, errorResponse.getStatusCode(), locale);
+				return unexpectedErrorView(
+						exception,
+						errorResponse.getStatusCode(),
+						locale,
+						request,
+						response
+				);
 			}
-			return frameworkErrorView(errorResponse.getStatusCode(), locale);
+			return frameworkErrorView(errorResponse.getStatusCode(), locale, request, response);
 		}
-		return unexpectedErrorView(exception, HttpStatus.INTERNAL_SERVER_ERROR, locale);
+		return unexpectedErrorView(
+				exception,
+				HttpStatus.INTERNAL_SERVER_ERROR,
+				locale,
+				request,
+				response
+		);
+	}
+
+	public ModelAndView forbiddenView(
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
+		return errorView(
+				HttpStatus.FORBIDDEN,
+				"error.403.message",
+				new Object[0],
+				locale,
+				request,
+				response
+		);
 	}
 
 	private ModelAndView unexpectedErrorView(
 			RuntimeException exception,
 			HttpStatusCode status,
-			Locale locale
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
 	) {
 		String errorReference = UUID.randomUUID().toString();
 		LOGGER.error(
@@ -101,20 +179,41 @@ public final class LocalizedWebExceptionHandler {
 				stackFrames(exception)
 		);
 
-		ModelAndView view = errorView(status, "error.500.message", new Object[0], locale);
+		ModelAndView view = errorView(
+				status,
+				"error.500.message",
+				new Object[0],
+				locale,
+				request,
+				response
+		);
 		view.addObject("errorReference", errorReference);
 		return view;
 	}
 
-	private ModelAndView frameworkErrorView(HttpStatusCode statusCode, Locale locale) {
-		return errorView(statusCode, defaultMessageCode(statusCode), new Object[0], locale);
+	private ModelAndView frameworkErrorView(
+			HttpStatusCode statusCode,
+			Locale locale,
+			HttpServletRequest request,
+			HttpServletResponse response
+	) {
+		return errorView(
+				statusCode,
+				defaultMessageCode(statusCode),
+				new Object[0],
+				locale,
+				request,
+				response
+		);
 	}
 
 	private ModelAndView errorView(
 			HttpStatusCode status,
 			String messageCode,
 			Object[] messageArguments,
-			Locale locale
+			Locale locale,
+			HttpServletRequest servletRequest,
+			HttpServletResponse servletResponse
 	) {
 		String defaultMessage = messageSource.getMessage(defaultMessageCode(status), null, locale);
 		String localizedMessage = messageSource.getMessage(
@@ -123,11 +222,19 @@ public final class LocalizedWebExceptionHandler {
 				defaultMessage,
 				locale
 		);
-		ModelAndView view = new ModelAndView(viewName(status));
-		view.setStatus(status);
-		view.addObject("status", status.value());
-		view.addObject("errorMessage", localizedMessage);
-		return view;
+		HtmxRequest request = HtmxRequest.from(servletRequest);
+		if (request.rendersFragment()) {
+			BrowserResponse.retargetMainContent(servletResponse);
+		}
+		String pageView = viewName(status);
+		return BrowserResponse.render(
+				request,
+				servletResponse,
+				pageView,
+				pageView + " :: errorPage",
+				Map.of("status", status.value(), "errorMessage", localizedMessage),
+				status
+		);
 	}
 
 	private static String defaultMessageCode(HttpStatusCode status) {

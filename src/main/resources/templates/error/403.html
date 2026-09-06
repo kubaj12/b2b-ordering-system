@@ -3,6 +3,7 @@
       th:replace="~{layout/application :: layout(#{error.403.title}, null, ~{::#error-page})}">
 <body>
 <section id="error-page"
+         th:fragment="errorPage"
          th:replace="~{fragments/error-content :: errorContent(${status != null ? status : 403}, #{error.403.title}, #{error.403.message})}">
 </section>
 </body>

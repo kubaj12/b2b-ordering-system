@@ -5,6 +5,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}">
     <title th:text="${pageTitle == null ? #messages.msg('app.name') : pageTitle + ' – ' + #messages.msg('app.name')}">
         Zamówienia B2B
     </title>
@@ -14,7 +16,7 @@
     <script defer th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
     <script defer th:src="@{/js/application.js}"></script>
 </head>
-<body class="d-flex min-vh-100 flex-column bg-body-tertiary">
+<body class="d-flex min-vh-100 flex-column bg-body-tertiary" hx-history="false">
 <a class="skip-link" href="#main-content" th:text="#{navigation.skip-to-content}">Przejdź do treści</a>
 
 <header th:replace="~{fragments/navigation :: navigation(${activeNavigation})}"></header>

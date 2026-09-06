@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout('Test obsługi żądań', null, ~{::#flow-content})}">
+<body>
+<section id="flow-content" th:fragment="flowContent">
+    <h1>Test obsługi żądań</h1>
+    <p id="display-value" th:text="${displayValue}">Wartość</p>
+    <form th:action="@{/test/browser-flow}" method="post" th:object="${testForm}"
+          hx-post="/test/browser-flow" hx-target="#flow-content" hx-swap="outerHTML">
+        <div th:replace="~{fragments/forms :: errorSummary}"></div>
+        <label for="name">Nazwa</label>
+        <input id="name" th:field="*{name}"
+               th:classappend="${#fields.hasErrors('name')} ? ' is-invalid' : ''"
+               th:attr="aria-invalid=${#fields.hasErrors('name')} ? 'true' : null,
+                        aria-describedby=${#fields.hasErrors('name')} ? 'name-errors' : null">
+        <div th:replace="~{fragments/forms :: fieldErrors('name')}"></div>
+        <button type="submit">Zapisz</button>
+    </form>
+</section>
+</body>
+</html>

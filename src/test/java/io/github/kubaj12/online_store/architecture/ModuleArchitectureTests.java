@@ -267,6 +267,12 @@ public class ModuleArchitectureTests {
 			.allowEmptyShould(true);
 
 	@ArchTest
+	public static final ArchRule SERVER_RENDERED_APPLICATION_HAS_NO_REST_CONTROLLERS = noClasses()
+			.that().resideInAPackage(BASE_PACKAGE + "..")
+			.should().beAnnotatedWith(RestController.class)
+			.orShould().beAnnotatedWith(RestControllerAdvice.class);
+
+	@ArchTest
 	public static final ArchRule SPRING_REPOSITORIES_RESIDE_IN_PERSISTENCE_ADAPTERS = classes()
 			.that().areAnnotatedWith(Repository.class)
 			.or().areAssignableTo(org.springframework.data.repository.Repository.class)
@@ -381,7 +387,8 @@ public class ModuleArchitectureTests {
 			SHARED_PACKAGE + ".money..",
 			SHARED_PACKAGE + ".auditing..",
 			SHARED_PACKAGE + ".web",
-			SHARED_PACKAGE + ".web.error.."
+			SHARED_PACKAGE + ".web.error..",
+			SHARED_PACKAGE + ".web.request.."
 		};
 	}
 

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout('Test strony anonimowej', null, ~{::#anonymous-content})}">
+<body>
+<main id="anonymous-content">
+    <h1>Test strony anonimowej</h1>
+    <p id="anonymous-route" th:text="${anonymousRoute}">Ścieżka</p>
+</main>
+</body>
+</html>

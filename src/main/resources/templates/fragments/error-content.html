@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="pl" xmlns:th="http://www.thymeleaf.org">
 <body>
-<section th:fragment="errorContent(statusCode, title, defaultMessage)" class="mx-auto py-5 text-center error-page">
+<section th:fragment="errorContent(statusCode, title, defaultMessage)" class="mx-auto py-5 text-center error-page"
+         tabindex="-1" data-browser-error>
     <p class="display-1 fw-semibold text-body-secondary" aria-hidden="true" th:text="${statusCode}">500</p>
     <h1 class="h2" th:text="${title}">Wystąpił błąd</h1>
     <p class="lead" th:text="${errorMessage != null ? errorMessage : defaultMessage}">Spróbuj ponownie.</p>

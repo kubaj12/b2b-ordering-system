@@ -48,6 +48,9 @@ class SharedWebRenderingTests {
 
 		assertThat(html)
 				.contains("<html lang=\"pl\"")
+				.contains("<meta name=\"_csrf\"")
+				.contains("<meta name=\"_csrf_header\"")
+				.contains("hx-history=\"false\"")
 				.contains("Przejdź do treści")
 				.contains("id=\"main-content\"")
 				.contains("/webjars/bootstrap/5.3.8/css/bootstrap.min.css")
@@ -187,15 +190,26 @@ class SharedWebRenderingTests {
 		mockMvc.perform(get("/css/application.css"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/css")));
-		mockMvc.perform(get("/js/application.js"))
+		MvcResult script = mockMvc.perform(get("/js/application.js"))
 				.andExpect(status().isOk())
-				.andExpect(content().contentTypeCompatibleWith("text/javascript"));
+				.andExpect(content().contentTypeCompatibleWith("text/javascript"))
+				.andReturn();
 		mockMvc.perform(get("/webjars/bootstrap/css/bootstrap.min.css"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/css")));
 		mockMvc.perform(get("/webjars/htmx.org/dist/htmx.min.js"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith("text/javascript"));
+
+		assertThat(responseBody(script))
+				.contains(
+						"htmx:configRequest",
+						"X-B2B-Handled-Error",
+						"htmx:beforeSwap",
+						"htmx:historyCacheMissLoadError",
+						"window.location.assign(target.href)"
+				)
+				.contains("event.detail.headers[csrf.header] = csrf.token");
 	}
 
 	private String layoutHtml() throws Exception {
