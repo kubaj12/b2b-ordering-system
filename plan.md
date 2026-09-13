@@ -37,7 +37,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 
 **Depends on:** Phase 1 migration, audit, web, configuration, and test foundations.
 
-- [ ] Add migrations for users, server-side session/security-version data, invitations, password-reset tokens, and login-throttle state, including normalized unique email, role/status constraints, timestamps, token hashes, single-use markers, and expiry indexes.
+- [x] Add migrations for users, server-side session/security-version data, invitations, password-reset tokens, and login-throttle state, including normalized unique email, role/status constraints, timestamps, token hashes, single-use markers, and expiry indexes.
 - [ ] Implement the environment-backed initial `ADMIN` seed, BCrypt hashing, a 12-character minimum password policy, and secret-safe logging/redaction. Make bootstrap idempotent under restart/concurrent startup; never overwrite an existing account's password, role, or status or promote an email collision.
 - [ ] Configure form login/logout and route rules: only login, invitation acceptance, password reset, static assets, and necessary error pages are anonymous; every other request requires an `ACTIVE` account.
 - [ ] Implement successful-login timestamp updates and throttling by normalized identity plus request source without revealing whether an email exists.

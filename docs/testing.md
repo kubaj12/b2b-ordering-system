@@ -72,6 +72,10 @@ Use repository tests for mappings, queries, locking clauses, database constraint
 PostgreSQL-specific behavior. Flush before asserting a database constraint that is deferred until
 SQL execution. Do not disable rollback merely to share records between test methods.
 
+`IdentityAccessPersistenceTests` covers the Phase 2 identity schema contract from
+`docs/identity-persistence.md`: account normalization, token hashes, lifecycle checks, expiry
+boundaries, session-version snapshots, login-throttle keys, indexes, and uniqueness races.
+
 ## Application-service integration tests
 
 Application-service integration tests do not run inside a test-managed transaction, so commits,
@@ -112,6 +116,11 @@ backfills data, add a focused test that:
 
 Never use `Flyway.clean()` for migration setup. Fresh schemas give each scenario an empty starting
 point while keeping clean disabled.
+
+`DatabaseMigrationTests` also covers the V002-to-V003 audit actor foreign-key upgrade. Empty V002
+schemas validate the new constraint immediately, while populated V002 schemas with unmatched
+historical actors retain the rows, keep the foreign key unvalidated, and still reject new unmatched
+audit events.
 
 ## Deterministic outbound adapters
 

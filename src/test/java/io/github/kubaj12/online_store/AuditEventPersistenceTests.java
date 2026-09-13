@@ -22,6 +22,7 @@ import io.github.kubaj12.online_store.shared.auditing.AuditEventType;
 import io.github.kubaj12.online_store.shared.auditing.AuditField;
 import io.github.kubaj12.online_store.shared.auditing.AuditFieldChange;
 import io.github.kubaj12.online_store.shared.auditing.AuditTargetType;
+import io.github.kubaj12.online_store.testsupport.IdentityDatabaseFixture;
 import io.github.kubaj12.online_store.testsupport.PostgreSqlServiceTestSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,8 +67,10 @@ class AuditEventPersistenceTests extends PostgreSqlServiceTestSupport {
 	private TransactionTemplate transactionTemplate;
 
 	@BeforeEach
-	void setAuditClock() {
+	void setUpAuditActor() {
 		testClock().set(RECORDED_AT);
+		new IdentityDatabaseFixture(jdbcTemplate)
+				.insertActiveUser(ACTING_USER_ID, "audit.employee@example.test", "EMPLOYEE", RECORDED_AT);
 	}
 
 	@Test
@@ -213,6 +216,56 @@ class AuditEventPersistenceTests extends PostgreSqlServiceTestSupport {
 		))
 				.isInstanceOf(DataIntegrityViolationException.class)
 				.hasMessageContaining("audit_event_target_id_format");
+	}
+
+	@Test
+	void databaseRejectsANewEventWithUnknownActor() {
+		UUID unknownActorId = UUID.fromString("51edc87f-ee36-49cd-9a4d-efb41c0f28f8");
+
+		assertThatThrownBy(() -> jdbcTemplate.update("""
+				INSERT INTO audit_event (
+					event_type,
+					target_type,
+					target_id,
+					acting_user_id,
+					occurred_at,
+					change_metadata
+				) VALUES (?, ?, ?, ?, ?, CAST(? AS JSONB))
+				""",
+				"identity.account.blocked",
+				"user",
+				"42",
+				unknownActorId,
+				OffsetDateTime.ofInstant(RECORDED_AT, ZoneOffset.UTC),
+				"{}"
+		))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("audit_event_acting_user_id_fk");
+	}
+
+	@Test
+	void databaseRejectsDeletingAnAccountReferencedByAuditHistory() {
+		transactionTemplate.executeWithoutResult(status -> recorder.record(EMPTY_EVENT.event(SKU_ID, actor())));
+
+		assertThatThrownBy(() -> jdbcTemplate.update("DELETE FROM identity_user WHERE id = ?", ACTING_USER_ID))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("audit_event_acting_user_id_fk");
+
+		assertThat(eventCount()).isOne();
+	}
+
+	@Test
+	void blockingAnAccountPreservesItsAuditHistory() {
+		transactionTemplate.executeWithoutResult(status -> recorder.record(EMPTY_EVENT.event(SKU_ID, actor())));
+
+		int updated = jdbcTemplate.update(
+				"UPDATE identity_user SET status = 'BLOCKED', updated_at = ? WHERE id = ?",
+				OffsetDateTime.ofInstant(RECORDED_AT.plusSeconds(60), ZoneOffset.UTC),
+				ACTING_USER_ID
+		);
+
+		assertThat(updated).isOne();
+		assertThat(eventCount()).isOne();
 	}
 
 	@Test
