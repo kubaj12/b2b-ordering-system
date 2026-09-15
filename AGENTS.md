@@ -2,17 +2,17 @@
 
 ## 1. Purpose
 
-This repository is developed using a multi-agent workflow coordinated by an orchestrator.
+This repository uses a multi-agent workflow coordinated by an orchestrator.
 
-The orchestrator must process the implementation roadmap in `plan.md` sequentially and delegate planning, implementation, and review work to fresh specialized subagents.
+The orchestrator processes `plan.md` sequentially. Every roadmap task gets a task-specific planner and implementer. The planner plans the work and performs primary code review. The implementer alone modifies application code. A separate critical reviewer is created only when the planner classifies the task as `CRITICAL`.
 
-The orchestrator coordinates work. It should not normally implement application code itself.
+The orchestrator coordinates work. It should not normally implement or review application code.
 
 ---
 
 ## 2. Sources of Truth
 
-The following precedence MUST always be respected:
+The following precedence MUST be respected:
 
 1. `project.md`
 2. `plan.md`
@@ -20,16 +20,12 @@ The following precedence MUST always be respected:
 4. Planner-generated implementation plan
 5. Existing implementation
 
-`project.md` is the authoritative product and technical specification.
+`project.md` is the authoritative product and technical specification. `plan.md` is the authoritative roadmap.
 
-`plan.md` is the authoritative implementation roadmap.
-
-A generated implementation plan MUST NOT redefine, weaken, expand, or contradict requirements from `project.md` or `plan.md`.
-
-If an apparent conflict exists:
+A generated plan MUST NOT redefine, weaken, expand, or contradict a higher-precedence source. If an apparent conflict exists:
 
 * follow the higher-precedence source;
-* do not silently reinterpret the requirement;
+* do not silently reinterpret it;
 * record the conflict;
 * mark the task `BLOCKED` if it cannot be resolved safely without a product or architecture decision.
 
@@ -39,17 +35,7 @@ Do not implement features explicitly excluded by `project.md`.
 
 ## 3. Persistent Workflow State
 
-The orchestrator MUST use `STATE.md` as its persistent workflow checkpoint.
-
-`STATE.md` contains operational state only.
-
-It MUST NOT become:
-
-* a second project specification;
-* a second roadmap;
-* a replacement for task artifacts;
-* a conversation log;
-* a place for long explanations.
+The orchestrator MUST use `STATE.md` as its persistent checkpoint. It contains operational state only and MUST NOT become a second specification, roadmap, task artifact, conversation log, or place for long explanations.
 
 At the beginning of every orchestration session:
 
@@ -57,26 +43,20 @@ At the beginning of every orchestration session:
 2. Read `project.md`.
 3. Read `plan.md`.
 4. Read `STATE.md`.
-5. Inspect the current task artifacts if a task is already in progress.
-6. Resume from the recorded workflow stage.
+5. Inspect current task artifacts when a task is active.
+6. Resume the recorded stage.
 
-Never assume that a previous conversation context is available.
-
-The repository state and task artifacts must contain everything necessary to resume work.
+Never assume previous conversation context or runtime agent instances are available. Repository state and task artifacts must be sufficient for recovery.
 
 ---
 
 ## 4. Task Selection
 
-Tasks are defined by unchecked checklist entries in `plan.md`.
+Tasks are unchecked checklist entries in `plan.md`. Unless `STATE.md` identifies unfinished work, select the first unchecked task whose dependencies are complete.
 
-Unless `STATE.md` identifies an unfinished task, select the first unchecked task whose dependencies have been completed.
+Process only ONE task at a time. Do not start another until the current task reaches `DONE`.
 
-Process only ONE roadmap task at a time.
-
-Do not start another task until the current task reaches `DONE`.
-
-When starting a task:
+When starting:
 
 1. Create a stable task ID.
 2. Create `.tasks/<task-id>/`.
@@ -84,457 +64,286 @@ When starting a task:
 4. Update `STATE.md`.
 5. Start planning.
 
-Example task ID:
+Example: `phase-2-admin-bootstrap`.
 
-`phase-2-admin-bootstrap`
-
-Task IDs must remain stable once created.
+Task IDs remain stable. `task.md` remains a faithful roadmap record; risk analysis belongs in `implementation-plan.md`.
 
 ---
 
 ## 5. Workflow State Machine
 
-Allowed workflow stages are:
+Allowed stages:
 
 `PLANNING`
 `IMPLEMENTING`
-`REVIEWING`
 `VALIDATING`
+`PRIMARY_REVIEW`
+`CRITICAL_REVIEW`
+`FINALIZING`
+`COMMITTING`
 `DONE`
 `BLOCKED`
 
-Normal transition:
+Normal `STANDARD` flow:
 
-`PLANNING -> IMPLEMENTING -> REVIEWING -> VALIDATING -> DONE`
+`PLANNING -> IMPLEMENTING -> VALIDATING -> PRIMARY_REVIEW -> FINALIZING -> COMMITTING -> DONE`
 
-Failed review transition:
+Normal `CRITICAL` flow:
 
-`REVIEWING -> IMPLEMENTING`
+`PLANNING -> IMPLEMENTING -> VALIDATING -> PRIMARY_REVIEW -> CRITICAL_REVIEW -> FINALIZING -> COMMITTING -> DONE`
 
-Unrecoverable transition:
+Failure transitions:
 
-`PLANNING | IMPLEMENTING | REVIEWING | VALIDATING -> BLOCKED`
+* `VALIDATING -> IMPLEMENTING`
+* `PRIMARY_REVIEW -> IMPLEMENTING`
+* `CRITICAL_REVIEW -> IMPLEMENTING`
 
-Do not skip workflow stages.
+After every implementation or fix, validation MUST pass before primary review. After a critical-review fix, validation and primary review MUST pass again before another critical review.
 
-Do not mark a task `DONE` merely because implementation appears complete.
+An unrecoverable failure from any active stage transitions to `BLOCKED`. Do not skip applicable stages; only `STANDARD` tasks omit `CRITICAL_REVIEW`.
 
-A task becomes `DONE` only when:
-
-1. implementation is complete;
-2. reviewer returns `PASS`;
-3. required validation passes;
-4. the implementation satisfies the original task;
-5. the corresponding checkbox in `plan.md` is updated.
+A task reaches `DONE` only when implementation is complete, current validation passes, all required reviews pass, the original task is satisfied, artifacts are complete, the roadmap checkbox is updated, and one local task commit succeeds.
 
 ---
 
-## 6. Context Isolation
+## 6. Agent Model Configuration
 
-Every roadmap task MUST use fresh task-specific subagents.
+Use these preferred configurations when Codex permits model selection:
 
-Do not reuse task-specific planner, implementer, or reviewer context for another roadmap task.
+| Role | Preferred model | Reasoning |
+|---|---|---|
+| Planner | `gpt-5.6-terra` | `medium` |
+| Implementer | `gpt-5.6-luna` | `medium` |
+| Critical reviewer | `gpt-6-astra` | `low` |
 
-Fresh context means fresh conversational context, NOT absence of project knowledge.
+Ordered capability ladder:
 
-Agents should obtain persistent knowledge from repository files.
+`gpt-5.6-luna -> gpt-5.6-terra -> gpt-5.6-sol -> gpt-6-astra`
 
-Do not pass hidden reasoning, long conversation transcripts, or unrelated history between agents.
+If a preferred model is unavailable:
 
-Communication between agents should happen primarily through:
+1. Try the immediately higher model.
+2. Continue upward exactly one level at a time.
+3. Never substitute a lower model.
+4. Preserve the configured reasoning effort when supported.
+5. Record the actual model and reasoning effort in `STATE.md`.
+6. If no permitted higher model is available, mark the task `BLOCKED`.
 
-* repository files;
-* task artifacts;
-* code changes;
-* git diff;
-* test results;
-* explicit review reports.
+The orchestrator's model is intentionally not prescribed here.
+
+---
+
+## 7. Context Isolation and Reuse
+
+Every roadmap task uses fresh task-specific agent context. Never reuse an agent for another task.
+
+Within one task and live orchestration session:
+
+* reuse the planner for planning and all primary reviews;
+* reuse the implementer for initial implementation and fixes;
+* reuse the critical reviewer for all critical-review attempts.
+
+Every review inspects the complete current implementation. Earlier findings are context, not proof that other defects do not exist.
+
+Runtime agents may disappear. On recovery, recreate unavailable roles with fresh context from repository artifacts. Reuse is an optimization, never a persistent-state dependency.
+
+Do not pass hidden reasoning, long transcripts, or unrelated history. Communicate primarily through repository files, artifacts, diffs, validation results, and review reports.
 
 ---
 
 # Agent Roles
 
-## 7. Orchestrator
-
-The orchestrator manages the workflow.
+## 8. Orchestrator
 
 Responsibilities:
 
-* read repository instructions and persistent state;
+* read instructions and persistent state;
 * select the correct task;
 * create task directories and artifacts;
-* create fresh specialized subagents;
-* provide each agent with appropriate context;
-* enforce workflow transitions;
-* maintain `STATE.md`;
-* track attempts;
-* ensure review feedback returns to the implementer;
-* run or delegate final validation;
-* update `plan.md` only after successful completion;
-* stop when a task becomes blocked.
+* create or resume agents with configured models;
+* enforce transitions and maintain `STATE.md`;
+* track implementation, validation, and review attempts;
+* return validation/review findings to the implementer;
+* run or delegate authoritative validation after every implementation;
+* require planner risk classification before implementation;
+* create a critical reviewer only for `CRITICAL` work;
+* update `plan.md` only after successful implementation, validation, and review;
+* create exactly one local commit after successful task completion;
+* stop when blocked.
 
-The orchestrator SHOULD NOT:
+The orchestrator SHOULD NOT implement features, perform large refactors, replace planner decisions without another planning pass, perform code review, silently change requirements, or accept an implementer's claim without independent evidence.
 
-* implement application features itself;
-* perform large refactors itself;
-* replace planner decisions without another planning pass;
-* perform its own review instead of using a reviewer;
-* silently change requirements;
-* mark tasks complete based only on an implementer's claim.
-
-The orchestrator should behave primarily as a deterministic workflow controller.
+The orchestrator verifies that risk classification is present and reasoned. It may conservatively escalate `STANDARD` to `CRITICAL`, but must not silently downgrade `CRITICAL` or override classification merely to avoid review.
 
 ---
 
-## 8. Planner
+## 9. Planner
 
-For every roadmap task, create a fresh planner.
+Every task gets a fresh planner serving in planning and primary-review modes. It is READ-ONLY for application code and may write only planning and review artifacts.
 
-The planner is READ-ONLY with respect to application code.
+### Planning inputs
 
-The planner may write only its task artifact if necessary.
+Provide `AGENTS.md`, `project.md`, current task and phase context, source code, and only dependency artifacts that are necessary.
 
-### Planner inputs
-
-Provide the planner with:
-
-* `AGENTS.md`;
-* `project.md`;
-* the current task;
-* relevant phase context from `plan.md`;
-* source code;
-* previous task artifacts only when they represent an explicit dependency and are necessary.
-
-Do NOT provide unrelated previous-agent conversation history.
-
-### Planner responsibilities
+### Planning responsibilities
 
 The planner must:
 
-1. Analyze the task against `project.md`.
-2. Inspect the current implementation.
-3. Identify relevant modules and files.
-4. Identify invariants that must remain true.
-5. Identify security implications.
-6. Identify transactional/concurrency implications where applicable.
-7. Identify migration implications where applicable.
-8. Identify edge cases.
-9. Identify tests required by the task.
-10. Produce a concrete implementation sequence.
-11. Define objective completion criteria.
+1. Trace exact `project.md` and `plan.md` requirements.
+2. Inspect current implementation and architecture.
+3. Define scope and explicit non-goals.
+4. Identify affected modules, files, and boundaries.
+5. Identify invariants.
+6. Analyze security and authorization.
+7. Analyze transactions and concurrency where applicable.
+8. Analyze migrations and data integrity where applicable.
+9. Identify edge cases and failure paths.
+10. Define meaningful tests, including false-confidence risks.
+11. Produce a concrete implementation sequence.
+12. Define validation commands and objective completion criteria.
+13. Classify the task `STANDARD` or `CRITICAL` with reasons.
+14. Distinguish requirements from recommendations.
 
-The planner should prefer the smallest implementation that fully satisfies the specification.
+Prefer the smallest compliant implementation. Do not introduce speculative features.
 
-The planner must not introduce speculative features.
+Classify as `CRITICAL` when work materially affects authentication, authorization, security boundaries, sessions, passwords, tokens, cryptography, secrets, important migration invariants, transactions, concurrency, locking, inventory, pricing, monetary calculations, checkout, order submission, immutable snapshots, or notification/outbox reliability. When uncertain, choose `CRITICAL`.
 
-### Planner output
+### Planning output
 
-Write:
+Write `.tasks/<task-id>/implementation-plan.md` with:
 
-`.tasks/<task-id>/implementation-plan.md`
+* Objective
+* Relevant Requirements
+* Scope and Non-Goals
+* Current State
+* Files / Modules Expected to Change
+* Implementation Steps
+* Security Considerations
+* Transaction / Concurrency Considerations
+* Migration / Data Integrity Considerations
+* Edge Cases and Failure Paths
+* Tests
+* Validation Commands
+* Risk Classification
+* Completion Criteria
 
-Recommended structure:
+The risk section states the classification, whether critical review is required, and concise reasons. Mirror it in `STATE.md`, then transition to `IMPLEMENTING`.
 
-# Implementation Plan
+### Primary review
 
-## Objective
+Provide the planner with the original task, relevant requirements, implementation plan, implementation result, validation artifact, previous reviews, current diff, and relevant code.
 
-## Relevant Requirements
+Review the complete implementation for:
 
-## Current State
+1. task and specification compliance;
+2. correct or justified plan implementation;
+3. missing requirements and unsafe failure paths;
+4. correctness, security, authorization, transaction, concurrency, migration, and integrity defects;
+5. database constraints;
+6. edge cases;
+7. meaningful tests and false confidence;
+8. validation applying to current code;
+9. regressions, unrelated scope, and boundary violations.
 
-## Files / Modules Expected to Change
+Tests passing is not sufficient for approval. Do not reject solely because another design is preferable.
 
-## Implementation Steps
-
-## Security Considerations
-
-## Transaction / Concurrency Considerations
-
-## Edge Cases
-
-## Tests
-
-## Validation Commands
-
-## Completion Criteria
-
-The plan should be sufficiently precise for an implementer with fresh context to execute it without access to the planner's conversation.
-
-After a valid plan exists, update:
-
-`STATE.md -> IMPLEMENTING`
-
----
-
-## 9. Implementer
-
-For every roadmap task, create a fresh implementer.
-
-The implementer is the primary agent allowed to modify application code.
-
-### Implementer inputs
-
-Provide:
-
-* `AGENTS.md`;
-* current task;
-* `.tasks/<task-id>/implementation-plan.md`;
-* relevant requirements from `project.md`;
-* repository source code.
-
-The implementation plan is subordinate to `project.md` and `plan.md`.
-
-If the implementer discovers that the plan contradicts a higher-precedence requirement, it must STOP rather than silently deviate.
-
-### Implementer responsibilities
-
-The implementer must:
-
-* implement the approved plan;
-* follow existing architecture and conventions;
-* keep changes scoped to the task;
-* create/update required tests;
-* run appropriate verification;
-* avoid unrelated refactoring;
-* preserve existing behavior unless the task explicitly changes it;
-* report anything that prevented complete implementation.
-
-After implementation, write:
-
-`.tasks/<task-id>/implementation-result.md`
-
-Include:
-
-# Implementation Result
-
-## Summary
-
-## Changed Files
-
-## Tests Added / Changed
-
-## Validation Performed
-
-## Known Issues
-
-## Deviations From Plan
-
-`Deviations From Plan` must explicitly say `None` when there were no deviations.
-
-After implementation finishes, update:
-
-`STATE.md -> REVIEWING`
+Return exactly `PASS` or `FAIL` in `.tasks/<task-id>/review-<attempt>.md`. Every failure finding includes severity (`CRITICAL`, `HIGH`, `MEDIUM`, or `LOW`), location, problem, impact, and required fix.
 
 ---
 
-## 10. Reviewer
+## 10. Implementer
 
-Create a fresh reviewer after implementation.
+Every task gets a fresh implementer. It is the only task agent allowed to change application code, tests, migrations, or implementation documentation.
 
-The reviewer MUST NOT modify application code.
+Provide the task, plan, relevant requirements, source, and the latest validation/review report when fixing failures. If the plan conflicts with a higher-precedence source, STOP instead of silently deviating.
 
-The reviewer must act independently from the implementer.
+The implementer must implement the plan, follow architecture, remain scoped, add meaningful tests, perform useful development verification, avoid unrelated refactors, preserve behavior outside scope, address findings, report blockers, and never review its own work.
 
-### Reviewer inputs
+After every implementation or fix, append an iteration to `.tasks/<task-id>/implementation-result.md` containing:
 
-Provide:
+* Trigger
+* Summary
+* Changed Files
+* Tests Added / Changed
+* Development Verification
+* Known Issues
+* Deviations From Plan
 
-* original task;
-* relevant `project.md` requirements;
-* `.tasks/<task-id>/implementation-plan.md`;
-* `.tasks/<task-id>/implementation-result.md`;
-* current git diff;
-* relevant source code;
-* test/validation results.
-
-### Reviewer responsibilities
-
-Review BOTH specification compliance and implementation quality.
-
-Check:
-
-1. Does the implementation satisfy the original task?
-2. Does it comply with `project.md`?
-3. Does it correctly implement the approved plan?
-4. Are any requirements missing?
-5. Are there correctness bugs?
-6. Are there security vulnerabilities?
-7. Are authorization boundaries correct?
-8. Are transaction boundaries correct?
-9. Are concurrency assumptions safe?
-10. Are database constraints/migrations correct?
-11. Are failure paths safe?
-12. Are edge cases handled?
-13. Are tests meaningful?
-14. Could tests pass while the implementation remains incorrect?
-15. Are regressions likely?
-16. Was unrelated functionality introduced?
-17. Were existing architectural boundaries violated?
-
-Do not approve code merely because tests pass.
-
-Do not reject code solely because an alternative design would be preferable.
-
-Issues must be tied to correctness, requirements, maintainability, security, architecture, or meaningful engineering risk.
-
-### Reviewer result
-
-The reviewer returns exactly one decision:
-
-`PASS`
-
-or
-
-`FAIL`
-
-Store the complete review in:
-
-`.tasks/<task-id>/review-<attempt>.md`
-
-For `FAIL`, each issue should contain:
-
-* severity: `CRITICAL`, `HIGH`, `MEDIUM`, or `LOW`;
-* location;
-* problem;
-* why it matters;
-* required fix.
-
-A `FAIL` must contain actionable findings.
+Use `## Iteration 1`, `## Iteration 2`, and so on. Later iterations identify their triggering validation/review and findings addressed. `Deviations From Plan` says `None` when applicable. Then transition to `VALIDATING`.
 
 ---
 
-## 11. Review / Fix Loop
+## 11. Validation
 
-Maximum review attempts:
+Authoritative validation occurs after every implementation or fix and before review. The orchestrator runs it or delegates it independently of the implementer's report, using repository-defined commands.
 
-`3`
+Validation may include compilation, unit tests, PostgreSQL integration tests, MVC/template tests, architecture checks, migrations, static analysis, lint/formatting, and clean database startup. Never claim an unexecuted command passed.
 
-When reviewer returns `FAIL`:
+Record every iteration in `.tasks/<task-id>/validation.md` with:
 
-1. Save the review artifact.
-2. Increment the review attempt in `STATE.md`.
-3. Change stage to `IMPLEMENTING`.
-4. Give the implementer the latest review report.
-5. Ask the implementer to address the findings.
-6. Run implementation verification.
-7. Create a FRESH reviewer for the next review attempt.
+* Implementation Iteration
+* Working Tree Revision
+* Commands
+* Results
+* Decision
 
-A reviewer must never review its own previous reasoning as authoritative.
+Use `## Iteration 1`, `## Iteration 2`, and so on. Identify the validated working-tree state with suitable diff metadata or a tree hash so later changes cannot rely on stale evidence.
 
-Each review should independently inspect the resulting implementation.
+On implementation-related failure, record it, increment validation, transition to `IMPLEMENTING`, and give the report to the implementer. Validation failures do not consume review attempts.
 
-If review fails three times:
-
-* set task status to `BLOCKED`;
-* set stage to `BLOCKED`;
-* record the blocking reason;
-* write `.tasks/<task-id>/blocked.md`;
-* STOP the orchestration workflow.
-
-Do not continue to subsequent roadmap tasks.
+If required validation cannot be performed safely because of the environment, record evidence and mark the task `BLOCKED`. After validation `PASS`, transition to `PRIMARY_REVIEW`.
 
 ---
 
-## 12. High-Risk Changes
+## 12. Critical Reviewer
 
-Treat a task as HIGH RISK when it materially affects one or more of:
+Create this independent, read-only agent only for `CRITICAL` tasks. Provide the primary-review inputs plus the latest primary review.
 
-* authentication;
-* authorization;
-* session management;
-* password handling;
-* invitations or security tokens;
-* cryptography or secrets;
-* database migrations with important invariants;
-* transactions;
-* concurrency or locking;
-* inventory consistency;
-* pricing or monetary calculations;
-* checkout;
-* order submission;
-* immutable order snapshots;
-* notification/outbox reliability;
-* security boundaries.
+It performs an adversarial full review emphasizing security/authorization, transactions, concurrency/locking, migrations/invariants, inventory/monetary consistency, failure safety, and tests that may provide false confidence.
 
-For high-risk tasks, review must be especially adversarial.
-
-If the Codex environment allows model selection per subagent, prefer the strongest practical reviewer configuration for high-risk tasks.
-
-Optionally use an additional independent final reviewer for high-risk tasks before `VALIDATING`.
-
-Do not require the strongest model for trivial or low-risk changes.
-
-Correctness matters more than model diversity. A second model is useful only when it provides genuinely independent review.
+Return exactly `PASS` or `FAIL` in `.tasks/<task-id>/critical-review-<attempt>.md`, using the primary-review finding format. For `STANDARD` tasks, status and result are `NOT_REQUIRED`.
 
 ---
 
-## 13. Validation
+## 13. Review / Fix Loops
 
-After reviewer `PASS`, transition to:
+Maximum failed primary-review decisions: `5`.
 
-`VALIDATING`
+Maximum failed critical-review decisions: `5`.
 
-Run all validation relevant to the task.
+Counters are independent. Validation failures consume neither limit.
 
-Use repository-defined commands where available.
+On primary `FAIL`: save the report, increment the primary counter, transition to `IMPLEMENTING`, return findings to the implementer, then validate before primary review.
 
-Validation may include:
+On critical `FAIL`: save the report, increment the critical counter, transition to `IMPLEMENTING`, return findings to the implementer, then pass validation and primary review before critical review.
 
-* compilation;
-* unit tests;
-* PostgreSQL integration tests;
-* Spring MVC tests;
-* architecture tests;
-* migration tests;
-* static analysis;
-* formatting/lint checks;
-* clean database startup/migration checks.
+Reuse live reviewers when possible, but every attempt independently examines the complete result. Recreate missing runtime agents from artifacts.
 
-Do not claim a command passed unless it was actually executed successfully.
-
-If validation fails because of the implementation:
-
-`VALIDATING -> IMPLEMENTING`
-
-The failure must be fixed and reviewed again.
-
-If validation cannot be performed because of an external/environmental problem, record the problem accurately and decide whether the task must become `BLOCKED`.
+If either counter reaches five with the latest result still `FAIL`, set status/stage to `BLOCKED`, write `blocked.md`, stop, and do not continue to another task.
 
 ---
 
-## 14. Completion
+## 14. Finalization and Completion
 
-After reviewer `PASS` and successful validation:
+After all required reviews pass:
 
-1. Write `.tasks/<task-id>/final.md`.
-2. Mark the corresponding checkbox in `plan.md` as complete.
-3. Update `STATE.md`:
+1. Transition to `FINALIZING`.
+2. Confirm validation applies to current implementation.
+3. Write `.tasks/<task-id>/final.md`.
+4. Mark the roadmap checkbox complete.
+5. Update `STATE.md` and transition to `COMMITTING`.
+6. Inspect the complete diff and staged list for scope and secrets.
+7. Stage only task files.
+8. Create the local task commit and verify its contents.
+9. Set `STATE.md` to `DONE` with `task_commit_created: true`, stage that state change, and amend the task commit without changing its message.
+10. Verify that the amended commit contains the complete task and that the working tree contains no uncommitted current-task changes.
+11. Begin the next eligible task with fresh agents.
 
-   * status: `DONE`
-   * stage: `DONE`
-4. Record the final commit/hash when available.
-5. Do not carry task-specific conversational context forward.
-6. Select the next eligible unchecked task.
-7. Create fresh agents for it.
+Do not push unless separately requested. Do not create intermediate planning, implementation, validation, review, fix, or checkpoint commits. The final amend is part of creating the one resulting task commit; it must not introduce a second history entry. Include the task ID in the commit message; no naming convention is otherwise prescribed.
 
-`final.md` should contain:
+A commit cannot contain its own hash. Do not store the final hash in `STATE.md` or another file in the same commit. Git history and task ID provide the association.
 
-# Task Completion
-
-## Task
-
-## Result
-
-## Validation
-
-## Reviews
-
-## Important Implementation Decisions
-
-## Follow-up Notes
-
-Follow-up notes must not silently create new scope. Any genuinely new required work must be represented explicitly in the roadmap before being treated as a task.
+`final.md` contains Task, Result, Validation, Reviews, Important Implementation Decisions, and Follow-up Notes. Follow-up notes must not silently expand scope.
 
 ---
 
@@ -542,90 +351,43 @@ Follow-up notes must not silently create new scope. Any genuinely new required w
 
 Expected structure:
 
-.tasks/ <task-id>/
-task.md
-implementation-plan.md
-implementation-result.md
-review-1.md
-review-2.md
-review-3.md
-final.md
+```text
+.tasks/<task-id>/
+  task.md
+  implementation-plan.md
+  implementation-result.md
+  validation.md
+  review-1.md ... review-5.md
+  critical-review-1.md ... critical-review-5.md
+  final.md
+```
 
-Not every task will have all three review files.
+Create only artifacts required by actual attempts. `STANDARD` tasks have no critical-review artifacts. Blocked tasks add `blocked.md`.
 
-Blocked tasks additionally contain:
-
-`blocked.md`
-
-Task artifacts are persistent coordination records.
-
-They should contain conclusions, plans, results, and evidence — not hidden chain-of-thought or conversation transcripts.
+Artifacts contain conclusions and evidence, not hidden chain-of-thought or transcripts.
 
 ---
 
 ## 16. Git and Scope Safety
 
-Before implementation, inspect the existing working tree.
+Inspect the working tree before implementation and the final commit. Existing changes belong to the user unless proven otherwise. Never overwrite, revert, delete, stage, or commit unrelated changes.
 
-Never assume existing uncommitted changes belong to the current agent.
+Keep the diff focused. Do not modify applied Flyway migrations, weaken tests, remove protections, or commit secrets, credentials, raw tokens, production values, or sensitive data.
 
-Do not overwrite, revert, or delete unrelated user changes.
-
-Keep the task diff focused.
-
-Do not modify already-applied Flyway migrations.
-
-Do not weaken tests simply to obtain a passing build.
-
-Do not remove security checks, validation, constraints, or concurrency protections merely to simplify implementation.
-
-Do not commit secrets, credentials, raw security tokens, production configuration values, or sensitive data.
+If unrelated changes prevent a task-only commit, stop and request direction instead of including or discarding them.
 
 ---
 
-## 17. Failure and Blocking Rules
+## 17. Blocking Rules
 
-Mark a task `BLOCKED` rather than guessing when:
+Mark `BLOCKED` rather than guessing when requirements conflict, an architecture decision is missing, infrastructure is unavailable, no permitted model is available, safe work requires changing scope, five primary or critical reviews fail, required validation cannot be completed safely, or the final task-only commit cannot be created.
 
-* requirements materially conflict;
-* a required architectural decision is absent;
-* required infrastructure is unavailable;
-* safe implementation requires changing product scope;
-* three review attempts fail;
-* required validation cannot be completed and proceeding would be unsafe.
-
-When blocked, write:
-
-`.tasks/<task-id>/blocked.md`
-
-containing:
-
-# Blocked Task
-
-## Task
-
-## Stage
-
-## Attempts
-
-## Blocking Problem
-
-## Evidence
-
-## Decisions Needed
-
-## Recommended Next Action
-
-Then stop.
+Write `.tasks/<task-id>/blocked.md` with Task, Stage, Attempts, Blocking Problem, Evidence, Decisions Needed, and Recommended Next Action. Then stop without a completion commit or subsequent task.
 
 ---
 
-## 18. Core Orchestration Principle
+## 18. Core Principle
 
-Agents are disposable.
+Agents are disposable. Repository state is persistent.
 
-Repository state is persistent.
-
-Never depend on an agent remembering something that should have been written to disk.
-
-The workflow must remain recoverable after the current Codex session, planner, implementer, reviewer, or orchestrator context disappears.
+Never depend on an agent remembering what should be on disk. The workflow must recover after any orchestrator, planner, implementer, or reviewer context disappears.
