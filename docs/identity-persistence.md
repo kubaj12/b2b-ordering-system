@@ -1,8 +1,15 @@
 # Identity Persistence Contract
 
-`V003__introduce_identity_access.sql` adds the persistence contract for Phase 2 identity data. It
-does not implement authentication services, JPA mappings, bootstrap seeding, token delivery, or
-request-time session enforcement.
+`V003__introduce_identity_access.sql` is the immutable persistence contract for Phase 2 identity
+data. The JDBC `InitialAdminBootstrapService` is the executable insert-only seed layered on top of
+that schema; it does not alter V003 or provide authentication services, JPA mappings, token
+delivery, or request-time session enforcement.
+
+The seed normalizes its configured email, checks for an existing account, hashes a valid password
+at runtime, and inserts with `ON CONFLICT ON CONSTRAINT identity_user_email_uq DO NOTHING`.
+Collisions preserve every existing account column, including blocked status, role, security version,
+timestamps, last login, identifier, and password hash. It has no account update or delete path and
+does not fabricate an authenticated audit actor.
 
 ## Tables
 

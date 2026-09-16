@@ -64,9 +64,14 @@ class RecordingMailDeliveryTests {
 
 	@Test
 	void redactsBodiesFromDiagnosticText() {
+		String token = "token-bearing-secret";
+		OutgoingMail sensitive = new OutgoingMail("customer@example.test", "subject",
+				token + " https://example.test/reset?token=" + token,
+				"<a href=\"https://example.test/reset?token=" + token + "\">reset</a>");
 		assertThat(FIRST_MAIL.toString())
 				.contains("customer@example.test", "plainTextBody=<redacted>", "htmlBody=<redacted>")
 				.doesNotContain("Treść tekstowa", "Treść HTML");
+		assertThat(sensitive.toString()).doesNotContain(token, "https://example.test/reset");
 	}
 
 }

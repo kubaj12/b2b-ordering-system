@@ -75,6 +75,20 @@ SQL execution. Do not disable rollback merely to share records between test meth
 `IdentityAccessPersistenceTests` covers the Phase 2 identity schema contract from
 `docs/identity-persistence.md`: account normalization, token hashes, lifecycle checks, expiry
 boundaries, session-version snapshots, login-throttle keys, indexes, and uniqueness races.
+`JdbcInitialAdminAccountStoreTests` covers the insert-only adapter, named conflict behavior, UTC
+timestamp binding, and mandatory transactions. `InitialAdminBootstrapServiceTests` covers
+validation, hashing, idempotence, sanitized failures, and credential-free outcomes. Committed
+`InitialAdminBootstrapIntegrationTests` covers complete row preservation, role/status collisions,
+restart behavior, and competing transactions. True restart tests use isolated schemas and do not
+run inherited service cleanup between application contexts; committed concurrency tests coordinate
+bounded transactions with latches rather than sleeps. These classes are part of this slice; the
+PostgreSQL tagged classes require Docker to execute.
+
+Bootstrap startup tests keep the seed disabled in ordinary fixtures and explicitly enable it only
+with valid test credentials. They inspect created or skipped outcomes without printing credentials,
+hashes, rows, links, or mail bodies. The MVC redaction regression route uses synthetic secrets and
+asserts that full-page and HTMX error logging contains only bounded types, stack frames, and a
+diagnostic reference.
 
 ## Application-service integration tests
 

@@ -75,6 +75,15 @@ final class SharedWebTestController {
 		throw new IllegalStateException("tajny-szczegół-techniczny");
 	}
 
+	@GetMapping("/test/errors/sensitive")
+	String sensitiveUnexpectedError() {
+		IllegalStateException failure = new IllegalStateException(
+				"raw-password synthetic-hash invitation-token reset-token smtp-credential <token-bearing-mail-body>");
+		failure.initCause(new IllegalArgumentException("nested raw-password synthetic-hash invitation-token"));
+		failure.addSuppressed(new IllegalStateException("suppressed reset-token smtp-credential"));
+		throw failure;
+	}
+
 	@GetMapping("/test/errors/type-mismatch")
 	String typeMismatch(@RequestParam int quantity) {
 		return "index";

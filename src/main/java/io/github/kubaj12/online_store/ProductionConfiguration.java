@@ -5,7 +5,6 @@ import java.net.URISyntaxException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.context.annotation.Bean;
@@ -17,9 +16,6 @@ import org.springframework.util.StringUtils;
 @Profile("production")
 @Configuration(proxyBeanMethods = false)
 class ProductionConfiguration {
-
-	private static final int MINIMUM_PASSWORD_LENGTH = 12;
-	private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
 	@Bean
 	static BeanFactoryPostProcessor productionConfigurationValidator(Environment environment) {
@@ -57,7 +53,7 @@ class ProductionConfiguration {
 		requirePort(environment, "spring.mail.port");
 
 		String fromAddress = requireText(environment, "app.mail.from-address");
-		require(EMAIL_PATTERN.matcher(fromAddress).matches()
+		require(fromAddress.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 					&& !"no-reply@example.test".equalsIgnoreCase(fromAddress),
 				"app.mail.from-address must be configured with a valid production address");
 
@@ -72,15 +68,6 @@ class ProductionConfiguration {
 		boolean startTlsRequired = mailBooleanProperty(environment, "mail.smtp.starttls.required", false);
 		require(sslEnabled || (startTlsEnabled && startTlsRequired),
 				"SMTP SSL or required STARTTLS must be enabled in production");
-
-		if (booleanProperty(environment, "app.bootstrap.admin.enabled", false)) {
-			String email = requireText(environment, "app.bootstrap.admin.email");
-			require(EMAIL_PATTERN.matcher(email).matches(),
-					"app.bootstrap.admin.email must be valid when bootstrap is enabled");
-			String password = requireText(environment, "app.bootstrap.admin.password");
-			require(password.length() >= MINIMUM_PASSWORD_LENGTH,
-					"app.bootstrap.admin.password must contain at least 12 characters when bootstrap is enabled");
-		}
 	}
 
 	private static String requireText(Environment environment, String propertyName) {

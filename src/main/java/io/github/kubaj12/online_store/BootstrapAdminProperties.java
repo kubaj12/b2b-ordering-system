@@ -1,19 +1,16 @@
 package io.github.kubaj12.online_store;
 
-import java.util.regex.Pattern;
-
 import jakarta.validation.constraints.AssertTrue;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.util.StringUtils;
+
+import io.github.kubaj12.online_store.identityaccess.domain.NormalizedEmail;
+import io.github.kubaj12.online_store.identityaccess.domain.PasswordPolicy;
 
 @Validated
 @ConfigurationProperties("app.bootstrap.admin")
 final class BootstrapAdminProperties {
-
-	private static final int MINIMUM_PASSWORD_LENGTH = 12;
-	private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
 	private final boolean enabled;
 	private final String email;
@@ -39,18 +36,32 @@ final class BootstrapAdminProperties {
 
 	@AssertTrue(message = "bootstrap administrator email must be configured and valid when bootstrap is enabled")
 	public boolean isEmailValidWhenEnabled() {
-		return !enabled || (StringUtils.hasText(email) && EMAIL_PATTERN.matcher(email).matches());
+		if (!enabled) {
+			return true;
+		}
+		try {
+			NormalizedEmail.of(email);
+			return true;
+		}
+		catch (IllegalArgumentException exception) {
+			return false;
+		}
 	}
 
 	@AssertTrue(message = "bootstrap administrator password must contain at least 12 characters when bootstrap is enabled")
 	public boolean isPasswordValidWhenEnabled() {
-		return !enabled || (password != null && password.length() >= MINIMUM_PASSWORD_LENGTH);
+		return !enabled || PasswordPolicy.hasMinimumCharacters(password);
+	}
+
+	@AssertTrue(message = "bootstrap administrator password must contain valid Unicode text and at most 72 UTF-8 bytes when bootstrap is enabled")
+	public boolean isPasswordEncodingValidWhenEnabled() {
+		return !enabled || PasswordPolicy.hasValidUtf8Length(password);
 	}
 
 	@Override
 	public String toString() {
 		return "BootstrapAdminProperties[enabled=%s, email=%s, password=<redacted>]"
-				.formatted(enabled, StringUtils.hasText(email) ? "<configured>" : "<absent>");
+				.formatted(enabled, email != null && !email.isBlank() ? "<configured>" : "<absent>");
 	}
 
 }

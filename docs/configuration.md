@@ -56,9 +56,9 @@ ordinary datasource properties, so tests do not depend on local or production da
 | `B2B_BASE_URL` | Yes | Absolute public application URL; production requires HTTPS. |
 | `B2B_SESSION_COOKIE_NAME` | No | Session cookie name; defaults to `B2BSESSION`. |
 | `B2B_SESSION_COOKIE_SECURE` | Yes; must be `true` | Adds the `Secure` cookie attribute. |
-| `B2B_BOOTSTRAP_ADMIN_ENABLED` | No | Enables the future idempotent initial-administrator seed. |
+| `B2B_BOOTSTRAP_ADMIN_ENABLED` | No | Enables the idempotent initial-administrator seed. |
 | `B2B_BOOTSTRAP_ADMIN_EMAIL` | When bootstrap is enabled | Initial administrator email address. |
-| `B2B_BOOTSTRAP_ADMIN_PASSWORD` | When bootstrap is enabled; secret | Initial password, at least 12 characters. |
+| `B2B_BOOTSTRAP_ADMIN_PASSWORD` | When bootstrap is enabled; secret | Initial password, at least 12 Unicode code points and at most 72 UTF-8 bytes. |
 
 `B2B_LOCAL_DB_NAME`, `B2B_LOCAL_DB_USERNAME`, and `B2B_LOCAL_DB_PASSWORD` customize only the local
 Compose container. They are not used by packaged production deployments.
@@ -76,6 +76,29 @@ The production profile rejects startup unless all of the following hold:
 - SMTP credentials are present when SMTP authentication is enabled;
 - bootstrap email and password are valid when bootstrap is enabled.
 
-The bootstrap password is deliberately absent by default. Once the Phase 2 seed exists and the
-administrator has been created, disable bootstrap and remove its credentials from the deployment
-environment.
+## Initial administrator bootstrap
+
+Bootstrap is disabled by default. When enabled, the email is stripped, lowercased with the root
+locale, and validated as a nonblank address no longer than 254 characters. The password must be
+nonblank, contain at least 12 Unicode code points, contain valid Unicode text, and encode to no
+more than 72 UTF-8 bytes. Password whitespace is significant and is never trimmed or normalized.
+The password is hashed at runtime with BCrypt and only the hash is stored.
+
+After Flyway and the datasource are ready, the application performs an insert-only conditional
+seed. A new row is `ADMIN`, `ACTIVE`, security version `0`, with UTC timestamps. The database's
+canonical email constraint makes restarts and concurrent startup safe. If any account already
+occupies the configured normalized email, startup succeeds with a credential-free skip and does
+not promote, reactivate, reset, or otherwise modify it. Changing the configured password never
+rotates an existing password; changing the email selects a separate seed target and does not
+rename an account.
+
+Enable it using exported variables or deployment secret configuration, check the credential-free
+created or skipped outcome, then disable it and remove the initial credentials. Enabled restarts
+still require valid credentials. This slice persists the administrator; database-backed form login
+is implemented by the next roadmap slice, so bootstrap completion is not a login smoke test.
+
+Application logs must not contain raw passwords or hashes, token-bearing paths or links, servlet
+headers or session IDs, SMTP credentials, or mail bodies. Use fixed outcomes and diagnostic
+references. JDBC bind logging and SMTP debug logging stay disabled. The application pins safe
+defaults for the framework JDBC, Hibernate bind, Hikari, web, security, and generated-user logger
+categories; deployments must not enable credential-bearing TRACE/debug categories.

@@ -148,6 +148,37 @@ class LocalizedWebExceptionHandlerTests {
 				.doesNotContain("tajny-szczegół-techniczny", "IllegalStateException");
 	}
 
+	@Test
+	void excludesSensitiveExceptionAndRequestDataFromFullPageAndHtmxDiagnostics() throws Exception {
+		Logger logger = (Logger) LoggerFactory.getLogger(LocalizedWebExceptionHandler.class);
+		ListAppender<ILoggingEvent> appender = new ListAppender<>();
+		appender.start();
+		logger.addAppender(appender);
+		try {
+			String fullPage = mockMvc.perform(get("/test/errors/sensitive?token=url-token")
+					.header("Authorization", "Bearer header-secret"))
+				.andExpect(status().isInternalServerError()).andReturn().getResponse()
+					.getContentAsString(StandardCharsets.UTF_8);
+			String htmx = mockMvc.perform(get("/test/errors/sensitive?token=url-token")
+					.header(HtmxHeaders.REQUEST, "true")
+					.header("Cookie", "B2BSESSION=session-secret"))
+				.andExpect(status().isInternalServerError()).andReturn().getResponse()
+					.getContentAsString(StandardCharsets.UTF_8);
+			String diagnostics = appender.list.stream().map(ILoggingEvent::getFormattedMessage)
+					.reduce("", (left, right) -> left + "\n" + right);
+			assertThat(fullPage).contains("Identyfikator błędu").doesNotContain("raw-password", "url-token");
+			assertThat(htmx).contains("Wystąpił nieoczekiwany błąd").doesNotContain("raw-password", "url-token");
+			assertThat(diagnostics).contains("IllegalStateException", "IllegalArgumentException")
+					.doesNotContain("raw-password", "synthetic-hash", "invitation-token", "reset-token",
+							"smtp-credential", "url-token", "header-secret", "session-secret");
+			assertThat(appender.list).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+		}
+		finally {
+			logger.detachAppender(appender);
+			appender.stop();
+		}
+	}
+
 	private String assertPolishError(String path, int statusCode, String title, String message) throws Exception {
 		MvcResult result = mockMvc.perform(get(path))
 				.andExpect(status().is(statusCode))

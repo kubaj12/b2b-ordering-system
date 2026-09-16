@@ -5,6 +5,7 @@ target/
 !**/src/test/**/target/
 .report
 .tasks
+.archive
 
 ### Local configuration and runtime data ###
 .env

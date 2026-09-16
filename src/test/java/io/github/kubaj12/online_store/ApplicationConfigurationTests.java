@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,6 +56,22 @@ class ApplicationConfigurationTests {
 			assertThat(bootstrap.email()).isEmpty();
 			assertThat(bootstrap.password()).isEmpty();
 			assertThat(bootstrap.toString()).contains("password=<redacted>");
+		});
+	}
+
+	@Test
+	void providesOneSaltedBcryptPasswordEncoder() {
+		contextRunner.run(context -> {
+			assertThat(context.getBeansOfType(PasswordEncoder.class)).hasSize(1);
+			PasswordEncoder encoder = context.getBean(PasswordEncoder.class);
+			String password = "correct-horse-battery-staple";
+			String first = encoder.encode(password);
+			String second = encoder.encode(password);
+			assertThat(first).startsWith("$2b$12$").hasSize(60);
+			assertThat(encoder.matches(password, first)).isTrue();
+			assertThat(encoder.matches("wrong-password", first)).isFalse();
+			assertThat(second).isNotEqualTo(first);
+			assertThat(first).doesNotContain(password);
 		});
 	}
 
@@ -115,7 +132,7 @@ class ApplicationConfigurationTests {
 					assertThat(context).hasFailed();
 					String failureMessages = causalMessages(context.getStartupFailure());
 					assertThat(failureMessages)
-							.contains("bootstrap administrator password must contain at least 12 characters")
+							.contains("app.bootstrap.admin.password must contain at least 12 characters")
 							.doesNotContain(invalidPassword);
 				});
 	}

@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.Cookie;
 import org.springframework.boot.web.server.autoconfigure.ServerProperties;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.ActiveProfiles;
@@ -42,6 +43,9 @@ class OnlineStoreApplicationTests {
 	@Autowired
 	private JavaMailSender mailSender;
 
+	@Autowired
+	private ApplicationContext applicationContext;
+
 	@Test
 	void startsFromAnEmptyDatabaseAtTheLatestMigration() {
 		var migrationInfo = flyway.info();
@@ -53,6 +57,7 @@ class OnlineStoreApplicationTests {
 		assertThat(mailProperties.deliveryEnabled()).isFalse();
 		assertThat(imageStorageProperties.root()).isAbsolute();
 		assertThat(bootstrapAdminProperties.enabled()).isFalse();
+		assertThat(applicationContext.getBeansOfType(org.springframework.boot.ApplicationRunner.class)).isEmpty();
 
 		var sessionCookie = serverProperties.getServlet().getSession().getCookie();
 		assertThat(sessionCookie.getName()).isEqualTo("B2BSESSION");
