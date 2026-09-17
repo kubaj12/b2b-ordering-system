@@ -33,6 +33,20 @@ public final class IdentityDatabaseFixture {
 			Instant updatedAt,
 			Instant lastLoginAt
 	) {
+		insertUser(id, email, TEST_PASSWORD_HASH, role, status, securityVersion, createdAt, updatedAt, lastLoginAt);
+	}
+
+	public void insertUser(
+			UUID id,
+			String email,
+			String passwordHash,
+			String role,
+			String status,
+			long securityVersion,
+			Instant createdAt,
+			Instant updatedAt,
+			Instant lastLoginAt
+	) {
 		jdbcTemplate.update("""
 				INSERT INTO identity_user (
 					id,
@@ -48,7 +62,7 @@ public final class IdentityDatabaseFixture {
 				""",
 				id,
 				email,
-				TEST_PASSWORD_HASH,
+				passwordHash,
 				role,
 				status,
 				securityVersion,

@@ -12,7 +12,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AliasFor;
 
-import io.github.kubaj12.online_store.identityaccess.web.BrowserSecurityConfiguration;
 import io.github.kubaj12.online_store.shared.web.request.BrowserWebConfiguration;
 
 /** MVC slice that always exercises the application's actual browser security and HTMX setup. */
@@ -22,7 +21,8 @@ import io.github.kubaj12.online_store.shared.web.request.BrowserWebConfiguration
 @Inherited
 @Tag("mvc")
 @WebMvcTest
-@Import({BrowserWebConfiguration.class, BrowserSecurityConfiguration.class})
+@Import({BrowserWebConfiguration.class, io.github.kubaj12.online_store.identityaccess.web.BrowserSecurityConfiguration.class,
+		BrowserSecurityTestConfiguration.class})
 public @interface BrowserMvcTest {
 
 	@AliasFor(annotation = WebMvcTest.class, attribute = "controllers")

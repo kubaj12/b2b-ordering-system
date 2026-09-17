@@ -59,6 +59,13 @@ boundaries. These tests inherit the PostgreSQL category through `@PostgreSqlServ
 Use `@BrowserMvcTest(controllers = ...)` for feature MVC, security, and template slices. Classes
 that intentionally use raw `@WebMvcTest` must be tagged directly with `@Tag("mvc")`.
 
+Browser MVC slices use the real `AccountUserDetailsService`, `AccountAccessService`, and the
+application `AccountPrincipal` backed by an in-memory `AuthenticationAccountStore`. The seeded
+`@WithUserDetails` identities are `customer@example.test`, `employee@example.test`, and
+`admin@example.test`; generic `@WithMockUser` principals are intentionally rejected by the
+current-account filter. Full web authentication/database coverage belongs to a separate
+PostgreSQL-tagged `@SpringBootTest` suite and is excluded from the Docker-free MVC profile.
+
 Use ArchUnit's `@ArchTag("architecture")` for `@AnalyzeClasses` suites because those classes are
 discovered by ArchUnit's JUnit engine. Use JUnit's `@Tag("architecture")` for ordinary
 Jupiter-based architecture tests.

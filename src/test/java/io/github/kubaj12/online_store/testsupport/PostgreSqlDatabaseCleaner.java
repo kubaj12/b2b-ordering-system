@@ -10,13 +10,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /** Clears committed service-test data while retaining the Flyway-managed schema. */
-final class PostgreSqlDatabaseCleaner {
+public final class PostgreSqlDatabaseCleaner {
 
 	private final DataSource dataSource;
 	private final JdbcTemplate jdbcTemplate;
 	private final PostgreSQLContainer container;
 
-	PostgreSqlDatabaseCleaner(
+	public PostgreSqlDatabaseCleaner(
 			DataSource dataSource,
 			JdbcTemplate jdbcTemplate,
 			PostgreSQLContainer container
@@ -26,7 +26,7 @@ final class PostgreSqlDatabaseCleaner {
 		this.container = container;
 	}
 
-	void clean() {
+	public void clean() {
 		verifyDisposableContainerTarget();
 		List<String> tables = jdbcTemplate.queryForList("""
 				SELECT tablename

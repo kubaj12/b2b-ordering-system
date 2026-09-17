@@ -153,10 +153,30 @@ therefore receives a non-swappable error status, and the shared script handles
 full browser navigation. Never return a 2xx or 3xx empty redirect response to an
 `HX-History-Restore-Request`: HTMX would swap that empty body into the history element.
 
-The anonymous route boundary is intentionally narrow: `/login`, `/invitations/accept[/**]`,
-`/password-reset[/**]`, `/error[/**]`, and Spring Boot's common static-resource locations. These
-routes bypass authentication only; CSRF protection still applies to their unsafe methods. All
-other routes are authenticated by default.
+## Browser authentication
+
+The browser security chain permits anonymous access only to these method/path combinations:
+
+| Path | Methods/dispatches |
+| --- | --- |
+| `/login` | GET, HEAD, POST |
+| `/invitations/accept` and one-token path | GET, HEAD, POST |
+| `/password-reset` and one-token path | GET, HEAD, POST |
+| Common static resources | GET, HEAD |
+| `/error` | GET, HEAD, and exact ERROR dispatches |
+
+The default is a persisted `ACTIVE` account. The request filter loads the current account row for
+every authenticated protected request and compares UUID, canonical email, role, and security
+version. Missing, blocked, stale, or generic principals lose their servlet session before CSRF,
+logout, authorization, or MVC handling. Query parameters do not extend the anonymous route list;
+`/error/anything` remains protected. CSRF applies to every unsafe browser request, including
+anonymous invitation/reset POSTs.
+
+Form login uses `email` and `password`, rotates the session through Spring Security, and always
+navigates to `/`. Ordinary redirects are `303 See Other`; HTMX uses an empty `204` with
+`HX-Redirect`, or an empty `409` for history restoration. Authentication failure and successful
+logout use fixed `/login?error` and `/login?logout` destinations. No submitted URL, referer, or
+request parameter is used as a redirect target.
 
 ### Errors and focus
 

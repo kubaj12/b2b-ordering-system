@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -42,7 +42,7 @@ class BrowserRequestHandlingTests {
 	}
 
 	@Test
-	@WithMockUser(roles = "EMPLOYEE")
+	@WithUserDetails("employee@example.test")
 	void rendersOneServiceResultAsAFullPageOrFragment() throws Exception {
 		applicationService.respondWith("wspólna-wartość");
 
@@ -65,7 +65,7 @@ class BrowserRequestHandlingTests {
 	}
 
 	@Test
-	@WithMockUser(roles = "EMPLOYEE")
+	@WithUserDetails("employee@example.test")
 	void rendersACompletePageForAnHtmxHistoryRestoreRequest() throws Exception {
 		applicationService.respondWith("odtworzona-wartość");
 
@@ -80,7 +80,7 @@ class BrowserRequestHandlingTests {
 	}
 
 	@Test
-	@WithMockUser(roles = "EMPLOYEE")
+	@WithUserDetails("employee@example.test")
 	void returnsTheSameValidationStatusAndErrorsWithoutCallingTheService() throws Exception {
 		MvcResult pageResult = mockMvc.perform(post("/test/browser-flow")
 					.with(csrf())
@@ -103,7 +103,7 @@ class BrowserRequestHandlingTests {
 	}
 
 	@Test
-	@WithMockUser(roles = "EMPLOYEE")
+	@WithUserDetails("employee@example.test")
 	void redirectsAfterOneSuccessfulServiceCallUsingTheAppropriateBrowserTransport() throws Exception {
 		mockMvc.perform(post("/test/browser-flow")
 					.with(csrf())
@@ -121,7 +121,7 @@ class BrowserRequestHandlingTests {
 	}
 
 	@Test
-	@WithMockUser(roles = "EMPLOYEE")
+	@WithUserDetails("employee@example.test")
 	void rejectsMissingOrInvalidCsrfBeforeEitherRequestPathCanCallTheService() throws Exception {
 		MvcResult pageResult = mockMvc.perform(post("/test/browser-flow").param("name", "pełna"))
 				.andExpect(status().isForbidden())
@@ -153,7 +153,7 @@ class BrowserRequestHandlingTests {
 	}
 
 	@Test
-	@WithMockUser(roles = "CUSTOMER")
+	@WithUserDetails("customer@example.test")
 	void appliesTheSameRoleAuthorizationBeforeEitherRepresentationLoadsData() throws Exception {
 		mockMvc.perform(get("/test/browser-flow"))
 				.andExpect(status().isForbidden());
@@ -215,7 +215,8 @@ class BrowserRequestHandlingTests {
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("/password-reset")));
 		mockMvc.perform(get("/error/required-page"))
-				.andExpect(status().isNotFound());
+				.andExpect(status().isFound())
+				.andExpect(redirectedUrl("/login"));
 
 		mockMvc.perform(get("/invitations/manage"))
 				.andExpect(status().isFound())
@@ -235,7 +236,7 @@ class BrowserRequestHandlingTests {
 	}
 
 	@Test
-	@WithMockUser(roles = "EMPLOYEE")
+	@WithUserDetails("employee@example.test")
 	void doesNotExposeAJsonRepresentation() throws Exception {
 		mockMvc.perform(get("/test/browser-flow").accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotAcceptable())

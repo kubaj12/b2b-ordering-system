@@ -94,8 +94,12 @@ rename an account.
 
 Enable it using exported variables or deployment secret configuration, check the credential-free
 created or skipped outcome, then disable it and remove the initial credentials. Enabled restarts
-still require valid credentials. This slice persists the administrator; database-backed form login
-is implemented by the next roadmap slice, so bootstrap completion is not a login smoke test.
+still require valid credentials. Verify the browser smoke journey by opening `/login`, obtaining its
+CSRF field, and POSTing the configured identity with the `email` and `password` parameters. A
+valid login reaches `/`; logout is an authenticated POST and expires the configured servlet session
+cookie. The cookie name comes from `B2B_SESSION_COOKIE_NAME` (default `B2BSESSION`), while local
+HTTP keeps `Secure=false` and production validation requires `Secure=true`, `HttpOnly=true`, and
+`SameSite=Lax`.
 
 Application logs must not contain raw passwords or hashes, token-bearing paths or links, servlet
 headers or session IDs, SMTP credentials, or mail bodies. Use fixed outcomes and diagnostic

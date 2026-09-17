@@ -2,8 +2,10 @@
 
 `V003__introduce_identity_access.sql` is the immutable persistence contract for Phase 2 identity
 data. The JDBC `InitialAdminBootstrapService` is the executable insert-only seed layered on top of
-that schema; it does not alter V003 or provide authentication services, JPA mappings, token
-delivery, or request-time session enforcement.
+that schema. Read-only authentication services load credentials and current access snapshots from
+`identity_user`; the browser request boundary compares current ACTIVE status and `security_version`
+on each protected request. This slice validates the servlet session snapshot; the persistent
+`identity_session` registry remains a later account-wide invalidation contract.
 
 The seed normalizes its configured email, checks for an existing account, hashes a valid password
 at runtime, and inserts with `ON CONFLICT ON CONSTRAINT identity_user_email_uq DO NOTHING`.
@@ -65,6 +67,10 @@ Account-wide invalidation and token lookups are supported by `identity_session_u
 `identity_password_reset_token_user_id_idx`.
 
 ## Future Transaction Contracts
+
+Later block, password-reset, and password-change commands must rotate `security_version` and
+connect registry revocation to the servlet-session check. Login timestamp updates, throttling, and
+invitation/reset token workflows remain pending slices.
 
 The schema supports later service implementations that must use transactions and conditional
 updates for one-way lifecycle changes. Invitation acceptance should update only a pending,

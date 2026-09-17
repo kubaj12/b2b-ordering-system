@@ -3,24 +3,23 @@ package io.github.kubaj12.online_store.shared.web.error;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.web.ErrorProperties.IncludeAttribute;
 import org.springframework.boot.autoconfigure.web.WebProperties;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import io.github.kubaj12.online_store.testsupport.BrowserMvcTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Tag("mvc")
-@WebMvcTest(SharedWebTestController.class)
+@BrowserMvcTest(controllers = SharedWebTestController.class)
 class SharedWebRenderingTests {
 
 	@Autowired
@@ -41,7 +40,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "customer@example.test", roles = "CUSTOMER")
+	@WithUserDetails("customer@example.test")
 	void rendersPolishResponsiveLayoutWithLocalAssets() throws Exception {
 		String html = responseBody(mockMvc.perform(get("/test/layout")
 				.locale(Locale.ENGLISH))
@@ -64,7 +63,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "customer@example.test", roles = "CUSTOMER")
+	@WithUserDetails("customer@example.test")
 	void customerNavigationContainsOnlyCustomerDestinations() throws Exception {
 		String html = layoutHtml();
 
@@ -78,7 +77,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "employee@example.test", roles = "EMPLOYEE")
+	@WithUserDetails("employee@example.test")
 	void employeeNavigationContainsStaffDestinationsButNotAdministratorDestination() throws Exception {
 		String html = layoutHtml();
 
@@ -93,7 +92,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@example.test", roles = "ADMIN")
+	@WithUserDetails("admin@example.test")
 	void administratorNavigationIncludesStaffAndAdministratorDestinations() throws Exception {
 		String html = layoutHtml();
 
@@ -104,7 +103,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "customer@example.test", roles = "CUSTOMER")
+	@WithUserDetails("customer@example.test")
 	void rendersAccessibleLocalizedFormErrorsAndEscapedFlashMessages() throws Exception {
 		String html = responseBody(mockMvc.perform(get("/test/components"))
 				.andExpect(status().isOk())
@@ -127,7 +126,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "customer@example.test", roles = "CUSTOMER")
+	@WithUserDetails("customer@example.test")
 	void rendersBoundedPaginationAndRetainsWhitelistedFilters() throws Exception {
 		String html = responseBody(mockMvc.perform(get("/test/components"))
 				.andExpect(status().isOk())
@@ -146,7 +145,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "customer@example.test", roles = "CUSTOMER")
+	@WithUserDetails("customer@example.test")
 	void rendersPaginationBoundaryAndSinglePageStates() throws Exception {
 		String firstPage = responseBody(mockMvc.perform(get("/test/components").param("page", "0"))
 				.andExpect(status().isOk())
@@ -172,7 +171,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser(username = "customer@example.test", roles = "CUSTOMER")
+	@WithUserDetails("customer@example.test")
 	void boundsAnOutOfRangePaginationWindowBeforeCreatingThePageSequence() throws Exception {
 		String html = responseBody(mockMvc.perform(get("/test/components")
 						.param("page", String.valueOf(Integer.MAX_VALUE)))
@@ -187,7 +186,7 @@ class SharedWebRenderingTests {
 	}
 
 	@Test
-	@WithMockUser
+	@WithUserDetails("customer@example.test")
 	void servesApplicationAndVersionIndependentWebJarAssets() throws Exception {
 		mockMvc.perform(get("/css/application.css"))
 				.andExpect(status().isOk())

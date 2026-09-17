@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout(#{identity.login.title}, null, ~{::#page-content})}">
+<body>
+<section id="page-content" class="bg-body border rounded-3 p-4 shadow-sm mx-auto" style="max-width: 32rem">
+    <h1 class="h2" th:text="#{identity.login.heading}">Logowanie</h1>
+    <div th:if="${loginError}" class="alert alert-danger" role="alert" th:text="#{identity.login.invalid}">Nieprawidłowy adres e-mail lub hasło.</div>
+    <div th:if="${loggedOut}" class="alert alert-success" role="status" th:text="#{identity.login.logout-success}">Zostałeś wylogowany.</div>
+    <form method="post" th:action="@{/login}">
+        <div class="mb-3">
+            <label class="form-label" for="email" th:text="#{identity.login.email}">Adres e-mail</label>
+            <input class="form-control" id="email" name="email" type="email" maxlength="254" autocomplete="username" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="password" th:text="#{identity.login.password}">Hasło</label>
+            <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn btn-primary" type="submit" th:text="#{identity.login.submit}">Zaloguj się</button>
+    </form>
+</section>
+</html>

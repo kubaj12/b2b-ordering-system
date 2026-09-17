@@ -6,24 +6,22 @@ import java.util.regex.Pattern;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import io.github.kubaj12.online_store.shared.web.request.HtmxHeaders;
+import io.github.kubaj12.online_store.testsupport.BrowserMvcTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Tag("mvc")
-@WebMvcTest(SharedWebTestController.class)
-@WithMockUser
+@BrowserMvcTest(controllers = SharedWebTestController.class)
+@WithUserDetails("customer@example.test")
 class LocalizedWebExceptionHandlerTests {
 	private static final Pattern ERROR_REFERENCE = Pattern.compile("Identyfikator błędu: ([0-9a-f-]{36})");
 
