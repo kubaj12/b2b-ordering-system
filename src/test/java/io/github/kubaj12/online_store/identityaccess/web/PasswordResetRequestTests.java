@@ -43,4 +43,20 @@ class PasswordResetRequestTests {
                 .andExpect(model().attributeDoesNotExist("password", "passwordConfirmation"))
                 .andExpect(content().string(containsString("href=\"/password-reset\"")));
     }
+    @Test void successfulResetShowsLoginAndRemovesPasswordForm() throws Exception {
+        String token = "A".repeat(43);
+        when(service.reset(token, "CorrectHorseBattery12")).thenReturn(true);
+        mvc.perform(post("/password-reset/" + token).with(csrf())
+                .param("password", "CorrectHorseBattery12").param("passwordConfirmation", "CorrectHorseBattery12"))
+                .andExpect(status().isOk()).andExpect(model().attribute("completed", true))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(content().string(containsString("href=\"/login\"")))
+                .andExpect(content().string(not(containsString("name=\"password\""))));
+    }
+    @Test void mismatchedPasswordsCannotConsumeToken() throws Exception {
+        mvc.perform(post("/password-reset/" + "A".repeat(43)).with(csrf())
+                .param("password", "CorrectHorseBattery12").param("passwordConfirmation", "DifferentPassword12"))
+                .andExpect(status().isOk()).andExpect(model().attribute("resetError", true));
+        verifyNoInteractions(service);
+    }
 }

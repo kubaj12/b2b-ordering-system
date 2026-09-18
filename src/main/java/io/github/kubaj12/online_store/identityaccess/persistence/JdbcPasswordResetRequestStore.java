@@ -32,8 +32,10 @@ public class JdbcPasswordResetRequestStore implements PasswordResetRequestStore 
         int consumed = jdbc.update("UPDATE identity_password_reset_token SET consumed_at = ?, updated_at = ? WHERE user_id = ? AND token_hash = ? AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?",
                 Timestamp.from(now), Timestamp.from(now), user, hash, Timestamp.from(now));
         if (consumed != 1) return false;
-        jdbc.update("UPDATE identity_user SET password_hash = ?, security_version = security_version + 1, updated_at = ? WHERE id = ?",
+        int replaced = jdbc.update("UPDATE identity_user SET password_hash = ?, security_version = security_version + 1, updated_at = ? WHERE id = ? AND status = 'ACTIVE'",
                 passwordHash, Timestamp.from(now), user);
+        // Throw so the surrounding transaction rolls back consumption as well as every other write.
+        if (replaced != 1) throw new IllegalStateException("Password replacement requires one active account");
         jdbc.update("UPDATE identity_password_reset_token SET revoked_at = ?, updated_at = ? WHERE user_id = ? AND consumed_at IS NULL AND revoked_at IS NULL",
                 Timestamp.from(now), Timestamp.from(now), user);
         jdbc.update("UPDATE identity_session SET revoked_at = ?, updated_at = ? WHERE user_id = ? AND revoked_at IS NULL",

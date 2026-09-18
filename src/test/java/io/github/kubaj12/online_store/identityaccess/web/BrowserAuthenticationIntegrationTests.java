@@ -41,6 +41,8 @@ class BrowserAuthenticationIntegrationTests {
 	@Autowired private PasswordEncoder passwordEncoder;
 	@Autowired private PostgreSqlDatabaseCleaner databaseCleaner;
 	@Autowired private TestClock testClock;
+	@Autowired private io.github.kubaj12.online_store.identityaccess.application.PasswordResetRequestService resets;
+	@Autowired private io.github.kubaj12.online_store.testsupport.RecordingMailDelivery mail;
 
 	@BeforeEach
 	void clean() { databaseCleaner.clean(); testClock.reset(); }
@@ -80,5 +82,33 @@ class BrowserAuthenticationIntegrationTests {
 				java.time.OffsetDateTime.ofInstant(now.plusSeconds(1), java.time.ZoneOffset.UTC), id);
 		mockMvc.perform(get("/").session((org.springframework.mock.web.MockHttpSession) login.getRequest().getSession(false)))
 				.andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	void passwordResetInvalidatesAllBrowserSessionsForOrdinaryAndHtmxRequests() throws Exception {
+		UUID id = UUID.randomUUID();
+		Instant now = testClock.instant();
+		new IdentityDatabaseFixture(jdbcTemplate).insertUser(id, "reset@example.test", passwordEncoder.encode(PASSWORD),
+				"CUSTOMER", "ACTIVE", 0, now, now, null);
+		var sessions = new java.util.ArrayList<org.springframework.mock.web.MockHttpSession>();
+		for (int i = 0; i < 2; i++) {
+			var login = mockMvc.perform(post("/login").with(csrf()).param("email", "reset@example.test").param("password", PASSWORD))
+					.andExpect(status().isSeeOther()).andReturn();
+			sessions.add((org.springframework.mock.web.MockHttpSession) login.getRequest().getSession(false));
+		}
+		resets.request("reset@example.test");
+		String link = mail.attempts().getLast().plainTextBody().split("\n\n")[1];
+		String token = link.substring(link.lastIndexOf('/') + 1);
+		String replacement = "ReplacementIntegrationPassword12";
+		mockMvc.perform(post("/password-reset/" + token).with(csrf())
+				.param("password", replacement).param("passwordConfirmation", replacement))
+				.andExpect(status().isOk()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.model().attribute("completed", true));
+		mockMvc.perform(get("/").session(sessions.get(0)))
+				.andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
+		mockMvc.perform(get("/").session(sessions.get(1)).header("HX-Request", "true"))
+				.andExpect(status().isUnauthorized());
+		assertThat(sessions).allMatch(org.springframework.mock.web.MockHttpSession::isInvalid);
+		mockMvc.perform(post("/login").with(csrf()).param("email", "reset@example.test").param("password", replacement))
+				.andExpect(status().isSeeOther()).andExpect(redirectedUrl("/"));
 	}
 }
