@@ -17,6 +17,14 @@ public class DeterministicTestConfiguration {
 		return new TestClock();
 	}
 
+    @Bean
+    @Primary
+    io.github.kubaj12.online_store.notifications.application.AccountLinkMail deterministicAccountLinkMail(
+            io.github.kubaj12.online_store.notifications.application.MailDelivery delivery,
+            @org.springframework.beans.factory.annotation.Value("${app.web.base-url}") java.net.URI baseUrl) {
+        return new io.github.kubaj12.online_store.notifications.application.AccountLinkMail(delivery, baseUrl, Runnable::run);
+    }
+
 	@Bean
 	@Primary
 	RecordingMailDelivery recordingMailDelivery() {

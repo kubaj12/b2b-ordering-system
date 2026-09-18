@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/application :: layout('Ponowne wysłanie zaproszenia', null, ~{::#page-content})}">
+<body><section id="page-content" class="bg-body border rounded-3 p-4">
+<h1>Ponowne wysłanie zaproszenia</h1>
+<p th:if="${requested}" role="status">Jeśli zaproszenie może zostać ponowione, podjęliśmy próbę wysłania nowego linku. Jeśli wiadomość nie dotarła, możesz ponowić prośbę, używając identyfikatora aktualnego zaproszenia.</p>
+<form method="post" th:action="@{/invitations/resend}">
+<label for="invitationId">Identyfikator aktualnego zaproszenia</label><input class="form-control mb-3" id="invitationId" name="invitationId" th:value="${invitationId}" required>
+<button class="btn btn-primary" type="submit">Wyślij ponownie</button></form>
+</section></body></html>

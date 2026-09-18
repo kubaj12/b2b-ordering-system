@@ -1,5 +1,6 @@
 package io.github.kubaj12.online_store.identityaccess.application;
 
+import io.github.kubaj12.online_store.notifications.application.AccountLinkMail;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.UUID;
@@ -16,12 +17,13 @@ import io.github.kubaj12.online_store.identityaccess.domain.PasswordPolicy;
 public class InvitationService {
     /** Transient delivery handoff. Never persist or log this value. */
     public record IssuedInvitation(UUID id, InvitationToken token) {}
+    private final AccountLinkMail mail;
     private final InvitationStore store;
     private final PasswordEncoder encoder;
     private final Clock clock;
     private final TransactionTemplate transactions;
-    public InvitationService(InvitationStore store, PasswordEncoder encoder, Clock clock, PlatformTransactionManager manager) {
-        this.store = store; this.encoder = encoder; this.clock = clock;
+    public InvitationService(InvitationStore store, PasswordEncoder encoder, Clock clock, PlatformTransactionManager manager, AccountLinkMail mail) {
+        this.mail = mail; this.store = store; this.encoder = encoder; this.clock = clock;
         this.transactions = new TransactionTemplate(manager);
     }
     public IssuedInvitation issue(String email, InvitationRole role, UUID actor) {
@@ -55,6 +57,7 @@ public class InvitationService {
         var token = InvitationToken.generate();
         UUID id = UUID.randomUUID();
         store.insert(id, email, role, token.hash(), actor, now, now.plus(Duration.ofDays(7)));
+        mail.activationAfterCommit(email, token.value());
         return new IssuedInvitation(id, token);
     }
     public UUID accept(String rawToken, String password) {
