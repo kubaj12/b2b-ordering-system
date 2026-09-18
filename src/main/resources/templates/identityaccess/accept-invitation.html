@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout(#{identity.invitation.title}, null, ~{::#page-content})}">
+<body>
+<section id="page-content" class="bg-body border rounded-3 p-4 shadow-sm mx-auto" style="max-width: 32rem">
+    <h1 class="h2" th:text="#{identity.invitation.title}">Aktywacja konta</h1>
+    <p th:text="#{identity.invitation.password-policy}">Ustaw hasło.</p>
+    <div th:if="${passwordError}" class="alert alert-danger" role="alert" th:text="#{identity.invitation.password-error}"></div>
+    <form method="post" th:action="@{/invitations/accept/{token}(token=${token})}">
+        <div class="mb-3">
+            <label class="form-label" for="password" th:text="#{identity.login.password}">Hasło</label>
+            <input class="form-control" id="password" name="password" type="password" autocomplete="new-password" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="passwordConfirmation" th:text="#{identity.invitation.confirm-password}">Powtórz hasło</label>
+            <input class="form-control" id="passwordConfirmation" name="passwordConfirmation" type="password" autocomplete="new-password" required>
+        </div>
+        <button class="btn btn-primary" type="submit" th:text="#{identity.invitation.submit}">Aktywuj konto</button>
+    </form>
+</section>
+</body>
+</html>

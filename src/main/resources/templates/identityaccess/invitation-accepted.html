@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout(#{identity.invitation.title}, null, ~{::#page-content})}">
+<body>
+<section id="page-content">
+    <h1 th:text="#{identity.invitation.title}">Aktywacja konta</h1>
+    <p role="status" th:text="#{identity.invitation.accepted}">Konto zostało aktywowane.</p>
+    <a class="btn btn-primary" th:href="@{/login}" th:text="#{identity.login.submit}">Zaloguj się</a>
+</section>
+</body>
+</html>
