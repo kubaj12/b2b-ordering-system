@@ -12,19 +12,27 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import io.github.kubaj12.online_store.identityaccess.domain.NormalizedEmail;
 import io.github.kubaj12.online_store.identityaccess.domain.PasswordPolicy;
+import io.github.kubaj12.online_store.identityaccess.domain.LoginThrottlePolicy;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({
 		ApplicationMailProperties.class,
 		ApplicationWebProperties.class,
 		BootstrapAdminProperties.class,
-		ImageStorageProperties.class
+		ImageStorageProperties.class,
+		LoginThrottleProperties.class
 })
 class ApplicationConfiguration {
 
 	@Bean
 	PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder(BCryptPasswordEncoder.BCryptVersion.$2B, 12);
+	}
+
+	@Bean
+	LoginThrottlePolicy loginThrottlePolicy(LoginThrottleProperties properties) {
+		return new LoginThrottlePolicy(properties.maxFailures(), properties.window(), properties.blockDuration(),
+				properties.retention());
 	}
 
 	@Bean

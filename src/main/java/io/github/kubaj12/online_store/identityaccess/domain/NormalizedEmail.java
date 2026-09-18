@@ -19,7 +19,7 @@ public final class NormalizedEmail {
 		if (input == null) {
 			throw new IllegalArgumentException("email must be provided");
 		}
-		String normalized = input.strip().toLowerCase(Locale.ROOT);
+		String normalized = normalizeAttempt(input);
 		if (normalized.isEmpty()) {
 			throw new IllegalArgumentException("email must be provided");
 		}
@@ -27,6 +27,11 @@ public final class NormalizedEmail {
 			throw new IllegalArgumentException("email must be a valid address");
 		}
 		return new NormalizedEmail(normalized);
+	}
+
+	/** Canonicalizes an attempted identity without validating it. */
+	public static String normalizeAttempt(String input) {
+		return input == null ? "" : input.strip().toLowerCase(Locale.ROOT);
 	}
 
 	private static boolean containsWhitespace(String value) {

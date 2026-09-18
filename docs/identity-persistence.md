@@ -4,8 +4,9 @@
 data. The JDBC `InitialAdminBootstrapService` is the executable insert-only seed layered on top of
 that schema. Read-only authentication services load credentials and current access snapshots from
 `identity_user`; the browser request boundary compares current ACTIVE status and `security_version`
-on each protected request. This slice validates the servlet session snapshot; the persistent
-`identity_session` registry remains a later account-wide invalidation contract.
+on each protected request. Login completion now writes `last_login_at` and `updated_at` atomically
+with the reset of its persistent throttle pair; the persistent `identity_session` registry remains
+a later account-wide invalidation contract.
 
 The seed normalizes its configured email, checks for an existing account, hashes a valid password
 at runtime, and inserts with `ON CONFLICT ON CONSTRAINT identity_user_email_uq DO NOTHING`.
@@ -69,8 +70,8 @@ Account-wide invalidation and token lookups are supported by `identity_session_u
 ## Future Transaction Contracts
 
 Later block, password-reset, and password-change commands must rotate `security_version` and
-connect registry revocation to the servlet-session check. Login timestamp updates, throttling, and
-invitation/reset token workflows remain pending slices.
+connect registry revocation to the servlet-session check. Invitation/reset token workflows remain
+pending slices.
 
 The schema supports later service implementations that must use transactions and conditional
 updates for one-way lifecycle changes. Invitation acceptance should update only a pending,
@@ -86,9 +87,14 @@ Blocking or password replacement must atomically rotate `identity_user.security_
 invalidate sessions. Stored session snapshots are intentionally not foreign keys to the current
 account version, so stale sessions remain representable and can be excluded by validation queries.
 
-Login throttling must derive a trusted request source and atomically upsert the
-`(identity_hash, source_address)` key. Thresholds, windows, and response behavior belong to the
-later login-throttling implementation.
+Login throttling derives the servlet peer address, ignores forwarded headers, hashes
+`NormalizedEmail.normalizeAttempt` with SHA-256, and atomically locks or inserts the
+`(identity_hash, source_address)` key. The default is five failures in a fixed 15-minute window,
+with a 15-minute block and 24-hour retention. Equality at block, window, and expiry boundaries is
+available again. State transitions use microsecond UTC instants and clamp backward clock movement
+to the persisted update time. Successful completion resets only its own pair. JDBC cleanup is
+bounded to 100 expired rows and uses `SKIP LOCKED`. The guarded account update matches UUID,
+canonical email, role, ACTIVE status, and security version.
 
 ## Audit Actor Foreign Key
 

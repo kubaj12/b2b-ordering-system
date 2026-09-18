@@ -56,7 +56,28 @@ class ApplicationConfigurationTests {
 			assertThat(bootstrap.email()).isEmpty();
 			assertThat(bootstrap.password()).isEmpty();
 			assertThat(bootstrap.toString()).contains("password=<redacted>");
+			assertThat(context.getBean(LoginThrottleProperties.class))
+				.extracting(LoginThrottleProperties::maxFailures, LoginThrottleProperties::window,
+						LoginThrottleProperties::blockDuration, LoginThrottleProperties::retention)
+				.containsExactly(5, java.time.Duration.ofMinutes(15), java.time.Duration.ofMinutes(15), java.time.Duration.ofHours(24));
+			assertThat(context.getEnvironment().getProperty("server.forward-headers-strategy")).isEqualTo("none");
 		});
+	}
+
+	@Test
+	void bindsAllThrottleOverridesAndRejectsInvalidPolicy() {
+		contextRunner.withPropertyValues(
+				"B2B_LOGIN_THROTTLE_MAX_FAILURES=7",
+				"B2B_LOGIN_THROTTLE_WINDOW=20m",
+				"B2B_LOGIN_THROTTLE_BLOCK_DURATION=30m",
+				"B2B_LOGIN_THROTTLE_RETENTION=48h")
+			.run(context -> assertThat(context.getBean(LoginThrottleProperties.class))
+				.extracting(LoginThrottleProperties::maxFailures, LoginThrottleProperties::window,
+						LoginThrottleProperties::blockDuration, LoginThrottleProperties::retention)
+				.containsExactly(7, java.time.Duration.ofMinutes(20), java.time.Duration.ofMinutes(30), java.time.Duration.ofHours(48)));
+
+		contextRunner.withPropertyValues("app.security.login-throttle.max-failures=0")
+			.run(context -> assertThat(context).hasFailed());
 	}
 
 	@Test

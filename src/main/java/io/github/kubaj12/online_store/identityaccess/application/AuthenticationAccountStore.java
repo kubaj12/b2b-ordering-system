@@ -2,6 +2,7 @@ package io.github.kubaj12.online_store.identityaccess.application;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Instant;
 
 import io.github.kubaj12.online_store.identityaccess.domain.NormalizedEmail;
 
@@ -11,6 +12,9 @@ public interface AuthenticationAccountStore {
 	Optional<Credentials> findCredentialsByEmail(NormalizedEmail email);
 
 	Optional<AccessSnapshot> findAccessById(UUID accountId);
+
+	/** Conditionally writes successful-login lifecycle timestamps for the verified principal. */
+	boolean updateSuccessfulLogin(AccountPrincipal principal, Instant now);
 
 	record Credentials(UUID id, String email, String passwordHash, String role, String status, long securityVersion) {
 		@Override

@@ -176,7 +176,10 @@ Form login uses `email` and `password`, rotates the session through Spring Secur
 navigates to `/`. Ordinary redirects are `303 See Other`; HTMX uses an empty `204` with
 `HX-Redirect`, or an empty `409` for history restoration. Authentication failure and successful
 logout use fixed `/login?error` and `/login?logout` destinations. No submitted URL, referer, or
-request parameter is used as a redirect target.
+request parameter is used as a redirect target. Missing, malformed, wrong-password, blocked, and
+throttled identities share the same generic response; the UI reveals no account existence, attempt
+count, retry time, or redirect target. A successful login writes its UTC microsecond completion
+timestamp only after session strategy succeeds, then resets the one identity/source throttle pair.
 
 ### Errors and focus
 

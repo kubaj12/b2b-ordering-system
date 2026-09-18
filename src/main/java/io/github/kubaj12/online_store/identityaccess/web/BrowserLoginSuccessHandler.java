@@ -10,19 +10,20 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
-import io.github.kubaj12.online_store.identityaccess.application.AccountAccessService;
 import io.github.kubaj12.online_store.identityaccess.application.AccountPrincipal;
+import io.github.kubaj12.online_store.identityaccess.application.LoginAttemptService;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import io.github.kubaj12.online_store.shared.web.request.BrowserResponse;
 import io.github.kubaj12.online_store.shared.web.request.HtmxRequest;
 
 public final class BrowserLoginSuccessHandler implements AuthenticationSuccessHandler {
 
-	private final AccountAccessService accessService;
+	private final LoginAttemptService loginAttemptService;
 	private final BrowserLoginFailureHandler failureHandler;
 	private final SecurityContextLogoutHandler logoutHandler = new SecurityContextLogoutHandler();
 
-	public BrowserLoginSuccessHandler(AccountAccessService accessService, BrowserLoginFailureHandler failureHandler) {
-		this.accessService = accessService;
+	public BrowserLoginSuccessHandler(LoginAttemptService loginAttemptService, BrowserLoginFailureHandler failureHandler) {
+		this.loginAttemptService = loginAttemptService;
 		this.failureHandler = failureHandler;
 	}
 
@@ -33,13 +34,16 @@ public final class BrowserLoginSuccessHandler implements AuthenticationSuccessHa
 			failure(request, response, authentication);
 			return;
 		}
+		if (!(authentication.getDetails() instanceof WebAuthenticationDetails details)) {
+			failure(request, response, authentication);
+			return;
+		}
 		try {
-			if (!accessService.isCurrent(principal)) {
+			if (!loginAttemptService.completeSuccessfulLogin(principal, details.getRemoteAddress())) {
 				failure(request, response, authentication);
 				return;
 			}
-		}
-		catch (RuntimeException exception) {
+		} catch (RuntimeException exception) {
 			failure(request, response, authentication);
 			return;
 		}

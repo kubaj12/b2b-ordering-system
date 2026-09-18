@@ -91,6 +91,13 @@ run inherited service cleanup between application contexts; committed concurrenc
 bounded transactions with latches rather than sleeps. These classes are part of this slice; the
 PostgreSQL tagged classes require Docker to execute.
 
+Login-throttle unit tests cover redacted hashed keys, literal-IP canonicalization, fixed-window
+boundaries, and monotonic clock handling. The current checked-in JDBC, service, and browser tests
+cover the implemented adapter and basic browser flow; the broader committed race, rollback, and
+enumeration regression matrix remains part of the follow-up security verification. PostgreSQL
+service tests are the authority for rollback and concurrency; the MVC fixture only implements the
+application-port contract.
+
 Bootstrap startup tests keep the seed disabled in ordinary fixtures and explicitly enable it only
 with valid test credentials. They inspect created or skipped outcomes without printing credentials,
 hashes, rows, links, or mail bodies. The MVC redaction regression route uses synthetic secrets and

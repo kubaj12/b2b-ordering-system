@@ -9,12 +9,15 @@ import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
 import org.springframework.security.web.header.HeaderWriterFilter;
@@ -28,6 +31,7 @@ import io.github.kubaj12.online_store.identityaccess.application.AccountAccessSe
 import io.github.kubaj12.online_store.identityaccess.application.AccountAuthenticationProvider;
 import io.github.kubaj12.online_store.identityaccess.application.AccountPrincipal;
 import io.github.kubaj12.online_store.identityaccess.application.AccountUserDetailsService;
+import io.github.kubaj12.online_store.identityaccess.application.LoginAttemptService;
 import io.github.kubaj12.online_store.shared.web.error.BrowserAccessDeniedHandler;
 import io.github.kubaj12.online_store.shared.web.error.LocalizedWebExceptionHandler;
 
@@ -66,8 +70,8 @@ public class BrowserSecurityConfiguration {
 
 	@Bean
 	AccountAuthenticationProvider accountAuthenticationProvider(AccountUserDetailsService userDetailsService,
-			org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
-		return new AccountAuthenticationProvider(userDetailsService, passwordEncoder);
+			org.springframework.security.crypto.password.PasswordEncoder passwordEncoder, LoginAttemptService loginAttemptService) {
+		return new AccountAuthenticationProvider(userDetailsService, passwordEncoder, loginAttemptService);
 	}
 
 	@Bean
@@ -78,11 +82,13 @@ public class BrowserSecurityConfiguration {
 			AccountAuthenticationProvider authenticationProvider, BrowserLoginSuccessHandler loginSuccessHandler,
 			BrowserLoginFailureHandler loginFailureHandler, BrowserLogoutSuccessHandler logoutSuccessHandler,
 			RequestMatcher browserPublicRequestMatcher, RequestMatcher browserEligibilityBypassMatcher,
-			ServerProperties serverProperties) throws Exception {
+			ServerProperties serverProperties, ApplicationEventPublisher applicationEventPublisher) throws Exception {
 		ActiveAccountRequestFilter activeAccountRequestFilter = new ActiveAccountRequestFilter(accessService,
 				exceptionResolver, localeResolver, viewResolver, browserEligibilityBypassMatcher);
 		http.addFilterAfter(activeAccountRequestFilter, HeaderWriterFilter.class);
-		http.authenticationProvider(authenticationProvider);
+		ProviderManager authenticationManager = new ProviderManager(authenticationProvider);
+		authenticationManager.setAuthenticationEventPublisher(new DefaultAuthenticationEventPublisher(applicationEventPublisher));
+		http.authenticationManager(authenticationManager);
 		http.authorizeHttpRequests(authorize -> authorize.requestMatchers(browserPublicRequestMatcher).permitAll()
 				.anyRequest().authenticated());
 		http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint)
@@ -106,8 +112,8 @@ public class BrowserSecurityConfiguration {
 	BrowserLoginFailureHandler browserLoginFailureHandler() { return new BrowserLoginFailureHandler(); }
 
 	@Bean
-	BrowserLoginSuccessHandler browserLoginSuccessHandler(AccountAccessService accessService,
-			BrowserLoginFailureHandler failureHandler) { return new BrowserLoginSuccessHandler(accessService, failureHandler); }
+	BrowserLoginSuccessHandler browserLoginSuccessHandler(LoginAttemptService loginAttemptService,
+			BrowserLoginFailureHandler failureHandler) { return new BrowserLoginSuccessHandler(loginAttemptService, failureHandler); }
 
 	@Bean
 	BrowserLogoutSuccessHandler browserLogoutSuccessHandler() { return new BrowserLogoutSuccessHandler(); }

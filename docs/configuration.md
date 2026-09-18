@@ -56,6 +56,10 @@ ordinary datasource properties, so tests do not depend on local or production da
 | `B2B_BASE_URL` | Yes | Absolute public application URL; production requires HTTPS. |
 | `B2B_SESSION_COOKIE_NAME` | No | Session cookie name; defaults to `B2BSESSION`. |
 | `B2B_SESSION_COOKIE_SECURE` | Yes; must be `true` | Adds the `Secure` cookie attribute. |
+| `B2B_LOGIN_THROTTLE_MAX_FAILURES` | No | Fixed-window failure threshold; defaults to `5`. |
+| `B2B_LOGIN_THROTTLE_WINDOW` | No | Fixed failure window; defaults to `15m`. |
+| `B2B_LOGIN_THROTTLE_BLOCK_DURATION` | No | Block duration after the threshold; defaults to `15m`. |
+| `B2B_LOGIN_THROTTLE_RETENTION` | No | Persistent-row retention; defaults to `24h`. |
 | `B2B_BOOTSTRAP_ADMIN_ENABLED` | No | Enables the idempotent initial-administrator seed. |
 | `B2B_BOOTSTRAP_ADMIN_EMAIL` | When bootstrap is enabled | Initial administrator email address. |
 | `B2B_BOOTSTRAP_ADMIN_PASSWORD` | When bootstrap is enabled; secret | Initial password, at least 12 Unicode code points and at most 72 UTF-8 bytes. |
@@ -75,6 +79,12 @@ The production profile rejects startup unless all of the following hold:
 - the SMTP port is explicitly configured as an integer from 1 through 65535;
 - SMTP credentials are present when SMTP authentication is enabled;
 - bootstrap email and password are valid when bootstrap is enabled.
+
+Throttle values are validated at startup. A nonpositive or sub-microsecond duration, a nonpositive
+threshold, or retention shorter than the window or block fails startup; there is no bypass switch.
+`server.forward-headers-strategy=none` is the trust boundary: behind a reverse proxy the servlet
+peer is the proxy and forwarded headers are ignored. A future client-IP strategy must establish an
+explicit trusted-proxy allowlist and header sanitization.
 
 ## Initial administrator bootstrap
 
