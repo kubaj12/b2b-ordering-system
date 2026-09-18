@@ -203,7 +203,7 @@ class InvitationIntegrationTests extends PostgreSqlServiceTestSupport {
                         return result;
                     } catch (InvocationTargetException exception) { throw exception.getCause(); }
                 });
-        return new InvitationService(gated, encoder, testClock(), manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class));
+        return new InvitationService(gated, encoder, testClock(), manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class), org.mockito.Mockito.mock(io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder.class));
     }
     @Test void expiryDuringPasswordHashingIsCommittedWithNoPartialAccount() {
         var issued = service.issue(EMAIL, InvitationRole.EMPLOYEE, admin);
@@ -217,7 +217,7 @@ class InvitationIntegrationTests extends PostgreSqlServiceTestSupport {
                 return encoder.matches(password, hash);
             }
         };
-        var expiringService = new InvitationService(store, expiryEncoder, testClock(), manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class));
+        var expiringService = new InvitationService(store, expiryEncoder, testClock(), manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class), org.mockito.Mockito.mock(io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder.class));
         assertThatThrownBy(() -> expiringService.accept(issued.token().value(), PASSWORD)).isInstanceOf(InvitationException.class);
         assertThat(state(issued)).isEqualTo("EXPIRED");
         assertThat(users()).isZero();
@@ -238,7 +238,7 @@ class InvitationIntegrationTests extends PostgreSqlServiceTestSupport {
                         return result;
                     } catch (InvocationTargetException exception) { throw exception.getCause(); }
                 });
-        return new InvitationService(failing, encoder, testClock(), manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class));
+        return new InvitationService(failing, encoder, testClock(), manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class), org.mockito.Mockito.mock(io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder.class));
     }
     private List<Object> race(Supplier<?> first, Supplier<?> second) throws Exception {
         CountDownLatch ready = new CountDownLatch(2);

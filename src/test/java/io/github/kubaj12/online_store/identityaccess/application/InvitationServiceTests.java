@@ -29,7 +29,7 @@ class InvitationServiceTests {
     private final SimpleTransactionStatus transaction = new SimpleTransactionStatus();
     private final TestClock clock = new TestClock();
     private final InvitationToken token = InvitationToken.generate();
-    private final InvitationService service = new InvitationService(store, encoder, clock, manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class));
+    private final InvitationService service = new InvitationService(store, encoder, clock, manager, org.mockito.Mockito.mock(io.github.kubaj12.online_store.notifications.application.AccountLinkMail.class), org.mockito.Mockito.mock(io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder.class));
 
     InvitationServiceTests() {
         when(manager.getTransaction(any())).thenReturn(transaction);

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/application :: layout('Pracownicy', 'admin-employees', ~{::directory})}">
+<body>
+<section th:fragment="directory">
+    <h1>Pracownicy i administratorzy</h1>
+    <h2 class="h4">Zaproś pracownika</h2>
+    <form method="post" th:action="@{/admin/employees/invite}" class="mb-4">
+        <label for="employee-email" class="form-label">Adres e-mail</label>
+        <input id="employee-email" name="email" type="email" maxlength="254" required class="form-control mb-2" autocomplete="email">
+        <button class="btn btn-primary" type="submit">Wyślij zaproszenie</button>
+    </form>
+    <div class="table-responsive">
+        <table class="table bg-body">
+            <caption>Konta personelu. Można blokować wyłącznie pracowników.</caption>
+            <thead><tr><th scope="col">E-mail</th><th scope="col">Rola</th><th scope="col">Status</th><th scope="col">Działania</th></tr></thead>
+            <tbody><tr th:each="staff : ${directory.staff}">
+                <td th:text="${staff.email}"></td>
+                <td th:text="${staff.role == 'ADMIN' ? 'Administrator' : 'Pracownik'}"></td>
+                <td th:text="${staff.status == 'ACTIVE' ? 'Aktywne' : 'Zablokowane'}"></td>
+                <td><form th:if="${staff.role == 'EMPLOYEE'}" method="post"
+                          th:action="@{/admin/employees/{id}/{action}(id=${staff.id},action=${staff.status == 'ACTIVE' ? 'block' : 'unblock'})}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit" th:text="${staff.status == 'ACTIVE' ? 'Zablokuj' : 'Odblokuj'}"
+                            th:attr="aria-label=${(staff.status == 'ACTIVE' ? 'Zablokuj ' : 'Odblokuj ') + staff.email}"></button>
+                </form></td>
+            </tr></tbody>
+        </table>
+    </div>
+    <h2 class="h4">Zaproszenia do aktywacji</h2>
+    <p>Zaproszenie jest ważne przez siedem dni. Jeśli wiadomość nie dotarła, wyślij je ponownie.</p>
+    <p th:if="${#lists.isEmpty(directory.invitations)}">Brak zaproszeń do aktywacji.</p>
+    <ul class="list-group"><li class="list-group-item" th:each="invitation : ${directory.invitations}">
+        <span th:text="${invitation.email}"></span> — <span th:text="${invitation.status == 'EXPIRED' ? 'Wygasłe' : 'Oczekujące'}"></span>
+        <form method="post" th:action="@{/invitations/resend}">
+            <input type="hidden" name="invitationId" th:value="${invitation.id}">
+            <button class="btn btn-sm btn-outline-primary" type="submit" th:attr="aria-label=${'Wyślij ponownie do ' + invitation.email}">Wyślij ponownie</button>
+        </form>
+    </li></ul>
+</section>
+</body>
+</html>
