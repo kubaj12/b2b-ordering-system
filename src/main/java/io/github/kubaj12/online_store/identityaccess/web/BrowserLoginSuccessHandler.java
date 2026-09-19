@@ -39,7 +39,9 @@ public final class BrowserLoginSuccessHandler implements AuthenticationSuccessHa
 			return;
 		}
 		try {
-			if (!loginAttemptService.completeSuccessfulLogin(principal, details.getRemoteAddress())) {
+			var session = request.getSession();
+			if (!loginAttemptService.completeSuccessfulLogin(principal, details.getRemoteAddress(),
+					session.getId(), session.getMaxInactiveInterval())) {
 				failure(request, response, authentication);
 				return;
 			}

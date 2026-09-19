@@ -65,7 +65,7 @@ public class BrowserSecurityConfiguration {
 	@Bean
 	RequestMatcher browserEligibilityBypassMatcher() {
 		RequestMatcher staticResources = PathRequest.toStaticResources().atCommonLocations();
-		return request -> (staticResources.matches(request) && isGetOrHead(request)) || exactError(request);
+		return request -> staticResources.matches(request) && isGetOrHead(request);
 	}
 
 	@Bean

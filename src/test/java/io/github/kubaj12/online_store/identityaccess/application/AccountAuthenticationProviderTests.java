@@ -31,6 +31,8 @@ class AccountAuthenticationProviderTests {
 	void unknownAndBlockedAccountsBothPerformPasswordMatchingBeforeGenericRejection() {
 		RecordingEncoder encoder = new RecordingEncoder();
 		AuthenticationAccountStore store = new AuthenticationAccountStore() {
+            @Override public void registerSession(AccountPrincipal principal, byte[] hash, java.time.Instant now, java.time.Instant expiresAt) { }
+
 			@Override public Optional<Credentials> findCredentialsByEmail(io.github.kubaj12.online_store.identityaccess.domain.NormalizedEmail email) {
 				if (email.value().equals("blocked@example.test")) return Optional.of(new Credentials(UUID.randomUUID(), email.value(),
 						"stored-hash", "CUSTOMER", "BLOCKED", 0));

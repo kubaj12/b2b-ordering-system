@@ -10,6 +10,4 @@ public interface EmployeeAccountStore {
     void requireAdmin(UUID actor);
     List<Staff> staff();
     List<Pending> invitations(Instant now);
-    String lockEmployee(UUID target);
-    void setStatus(UUID target, String status, Instant now);
 }

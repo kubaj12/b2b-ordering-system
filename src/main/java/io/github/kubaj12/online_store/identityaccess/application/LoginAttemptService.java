@@ -95,6 +95,11 @@ public final class LoginAttemptService {
 	}
 
 	public boolean completeSuccessfulLogin(AccountPrincipal principal, String sourceAddress) {
+		return completeSuccessfulLogin(principal, sourceAddress, null, 0);
+	}
+
+	/** Registration shares the conditional account update lock, serializing login with block/reset. */
+	public boolean completeSuccessfulLogin(AccountPrincipal principal, String sourceAddress, String sessionId, int timeoutSeconds) {
 		final LoginAttemptKey key;
 		try {
 			key = LoginAttemptKey.of(principal.email(), sourceAddress);
@@ -110,6 +115,14 @@ public final class LoginAttemptService {
 					LoginThrottleState state = throttleStore.lockOrCreate(key, policy.empty(now));
 					Instant completionNow = policy.effectiveNow(clock.instant(), state);
 					if (accountStore.updateSuccessfulLogin(principal, completionNow)) {
+						if (sessionId != null) {
+							byte[] hash;
+							try {
+								hash = java.security.MessageDigest.getInstance("SHA-256").digest(sessionId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+							} catch (java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException("SHA-256 unavailable"); }
+							accountStore.registerSession(principal, hash, completionNow,
+								completionNow.plusSeconds(timeoutSeconds > 0 ? timeoutSeconds : 86400));
+						}
 						throttleStore.save(key, policy.reset(state, completionNow));
 						return true;
 					}

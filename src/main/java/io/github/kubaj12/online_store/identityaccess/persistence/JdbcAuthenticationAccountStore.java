@@ -57,6 +57,21 @@ public class JdbcAuthenticationAccountStore implements AuthenticationAccountStor
 		throw new IllegalStateException("successful login update returned an unexpected update count");
 	}
 
+	@Override
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void registerSession(AccountPrincipal principal, byte[] sessionHash, Instant now, Instant expiresAt) {
+		jdbcTemplate.update("""
+			INSERT INTO identity_session
+			(id, session_id_hash, user_id, security_version, created_at, updated_at, last_seen_at, expires_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT (session_id_hash) DO UPDATE SET
+			user_id = EXCLUDED.user_id, security_version = EXCLUDED.security_version,
+			created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at,
+			last_seen_at = EXCLUDED.last_seen_at, expires_at = EXCLUDED.expires_at, revoked_at = NULL
+			""", UUID.randomUUID(), sessionHash, principal.accountId(), principal.securityVersion(),
+			now.atOffset(ZoneOffset.UTC), now.atOffset(ZoneOffset.UTC), now.atOffset(ZoneOffset.UTC), expiresAt.atOffset(ZoneOffset.UTC));
+	}
+
 	private Credentials credentials(ResultSet resultSet, int row) throws SQLException {
 		return new Credentials(resultSet.getObject("id", UUID.class), resultSet.getString("email"),
 				resultSet.getString("password_hash"), resultSet.getString("role"), resultSet.getString("status"),

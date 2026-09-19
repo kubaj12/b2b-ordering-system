@@ -16,6 +16,9 @@ public interface AuthenticationAccountStore {
 	/** Conditionally writes successful-login lifecycle timestamps for the verified principal. */
 	boolean updateSuccessfulLogin(AccountPrincipal principal, Instant now);
 
+	/** Called under the account lock acquired by updateSuccessfulLogin. */
+	void registerSession(AccountPrincipal principal, byte[] sessionHash, Instant now, Instant expiresAt);
+
 	record Credentials(UUID id, String email, String passwordHash, String role, String status, long securityVersion) {
 		@Override
 		public String toString() {

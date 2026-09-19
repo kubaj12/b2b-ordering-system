@@ -2,7 +2,6 @@ package io.github.kubaj12.online_store.identityaccess.web;
 
 import java.io.IOException;
 
-import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -33,12 +33,4 @@ public class JdbcEmployeeAccountStore implements EmployeeAccountStore {
             ORDER BY email, CASE WHEN status = 'PENDING' THEN 0 ELSE 1 END, created_at DESC, id DESC
             """, (rs, row) -> new Pending(rs.getObject("id", UUID.class), rs.getString("email"), rs.getString("status"), rs.getObject("expires_at", OffsetDateTime.class).toInstant()), now.atOffset(ZoneOffset.UTC));
     }
-    public String lockEmployee(UUID target) {
-        return jdbc.query("SELECT status FROM identity_user WHERE id = ? AND role = 'EMPLOYEE' FOR UPDATE",
-            (rs, row) -> rs.getString(1), target).stream().findFirst().orElseThrow(() -> new AccessDeniedException("employee target required"));
-    }
-    public void setStatus(UUID target, String status, Instant now) {
-        jdbc.update("UPDATE identity_user SET status = ?, security_version = security_version + CASE WHEN ? = 'BLOCKED' THEN 1 ELSE 0 END, updated_at = ? WHERE id = ? AND role = 'EMPLOYEE'",
-            status, status, now.atOffset(ZoneOffset.UTC), target);
-    }
 }

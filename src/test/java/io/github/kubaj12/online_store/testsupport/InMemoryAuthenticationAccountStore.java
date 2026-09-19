@@ -11,6 +11,9 @@ import io.github.kubaj12.online_store.identityaccess.application.AuthenticationA
 import io.github.kubaj12.online_store.identityaccess.domain.NormalizedEmail;
 
 public final class InMemoryAuthenticationAccountStore implements AuthenticationAccountStore {
+        @Override public void registerSession(io.github.kubaj12.online_store.identityaccess.application.AccountPrincipal principal,
+                byte[] hash, Instant now, Instant expiresAt) { }
+
 
 	public static final UUID CUSTOMER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 	public static final UUID EMPLOYEE_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");

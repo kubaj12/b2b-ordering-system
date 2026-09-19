@@ -15,6 +15,7 @@ class EmployeeAccountIntegrationTests extends PostgreSqlServiceTestSupport {
     @Autowired AccountAccessService access;
     @Autowired JdbcTemplate jdbc;
     @Autowired EmployeeAccountStore store;
+    @Autowired AccountStatusStore statusStore;
     @Autowired InvitationStore invitationStore;
     @Autowired org.springframework.transaction.PlatformTransactionManager manager;
     @Autowired org.springframework.security.crypto.password.PasswordEncoder encoder;
@@ -53,7 +54,7 @@ class EmployeeAccountIntegrationTests extends PostgreSqlServiceTestSupport {
     }
     @Test void auditFailureRollsBackStatusAndInvitationAndSuppressesMail() {
         io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder failing = event -> { throw new IllegalStateException("audit unavailable"); };
-        var accountService = new EmployeeAccountService(store, failing, testClock());
+        var accountService = new EmployeeAccountService(store, new AccountStatusService(statusStore, failing, testClock()), testClock());
         var transaction = new org.springframework.transaction.support.TransactionTemplate(manager);
         assertThatThrownBy(() -> transaction.executeWithoutResult(status -> accountService.block(admin, employee)))
             .isInstanceOf(IllegalStateException.class);

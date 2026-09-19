@@ -276,6 +276,9 @@ class LoginAttemptServiceTests {
 	}
 
 	private static final class RecordingAccountStore implements AuthenticationAccountStore {
+        @Override public void registerSession(io.github.kubaj12.online_store.identityaccess.application.AccountPrincipal principal,
+                byte[] hash, Instant now, Instant expiresAt) { }
+
 		private RuntimeException failUpdate;
 		@Override public Optional<Credentials> findCredentialsByEmail(io.github.kubaj12.online_store.identityaccess.domain.NormalizedEmail email) { return Optional.empty(); }
 		@Override public Optional<AccessSnapshot> findAccessById(UUID accountId) { return Optional.empty(); }

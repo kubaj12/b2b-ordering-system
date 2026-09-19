@@ -84,6 +84,35 @@ class BrowserAuthenticationIntegrationTests {
 				.andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
 	}
 
+    @Autowired private io.github.kubaj12.online_store.identityaccess.application.AccountStatusService statuses;
+
+    @Test
+    void blockThenUnblockRejectsEveryOldBrowserSessionAndAllowsFreshLogin() throws Exception {
+        var fixture = new IdentityDatabaseFixture(jdbcTemplate);
+        UUID employee = UUID.randomUUID(), customer = UUID.randomUUID();
+        fixture.insertActiveUser(employee, "actor@example.test", "EMPLOYEE", testClock.instant());
+        fixture.insertUser(customer, "blocked@example.test", passwordEncoder.encode(PASSWORD), "CUSTOMER", "ACTIVE", 0,
+            testClock.instant(), testClock.instant(), null);
+        var sessions = new java.util.ArrayList<org.springframework.mock.web.MockHttpSession>();
+        for (int i = 0; i < 2; i++) {
+            var result = mockMvc.perform(post("/login").with(csrf()).param("email", "blocked@example.test").param("password", PASSWORD))
+                .andExpect(status().isSeeOther()).andReturn();
+            sessions.add((org.springframework.mock.web.MockHttpSession) result.getRequest().getSession(false));
+        }
+        statuses.block(employee, customer);
+        mockMvc.perform(post("/login").with(csrf()).param("email", "blocked@example.test").param("password", PASSWORD))
+            .andExpect(redirectedUrl("/login?error"));
+        statuses.unblock(employee, customer);
+        mockMvc.perform(get("/").session(sessions.get(0))).andExpect(status().isFound()).andExpect(redirectedUrl("/login"));
+        mockMvc.perform(get("/").session(sessions.get(1)).header("HX-Request", "true"))
+            .andExpect(status().isUnauthorized()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("HX-Redirect", "/login"));
+        assertThat(sessions).allMatch(org.springframework.mock.web.MockHttpSession::isInvalid);
+        var fresh = mockMvc.perform(post("/login").with(csrf()).param("email", "blocked@example.test").param("password", PASSWORD))
+            .andExpect(status().isSeeOther()).andReturn();
+        mockMvc.perform(get("/").session((org.springframework.mock.web.MockHttpSession) fresh.getRequest().getSession(false)))
+            .andExpect(status().isOk());
+    }
+
 	@Test
 	void passwordResetInvalidatesAllBrowserSessionsForOrdinaryAndHtmxRequests() throws Exception {
 		UUID id = UUID.randomUUID();
