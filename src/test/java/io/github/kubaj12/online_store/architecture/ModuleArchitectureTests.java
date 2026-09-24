@@ -362,6 +362,7 @@ public class ModuleArchitectureTests {
 	private static boolean isSharedDomainPrimitivePackage(String packageName) {
 		return isPackageOrSubpackage(packageName, SHARED_PACKAGE + ".time")
 				|| isPackageOrSubpackage(packageName, SHARED_PACKAGE + ".money")
+				|| isPackageOrSubpackage(packageName, SHARED_PACKAGE + ".validation")
 				|| isPackageOrSubpackage(packageName, SHARED_PACKAGE + ".auditing");
 	}
 
@@ -387,10 +388,12 @@ public class ModuleArchitectureTests {
 			SHARED_PACKAGE,
 			SHARED_PACKAGE + ".time..",
 			SHARED_PACKAGE + ".money..",
+			SHARED_PACKAGE + ".validation..",
 			SHARED_PACKAGE + ".auditing..",
 			SHARED_PACKAGE + ".web",
 			SHARED_PACKAGE + ".web.error..",
-			SHARED_PACKAGE + ".web.request.."
+			SHARED_PACKAGE + ".web.request..",
+			SHARED_PACKAGE + ".web.validation.."
 		};
 	}
 

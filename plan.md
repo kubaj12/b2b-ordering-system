@@ -57,7 +57,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 **Depends on:** Phase 2 invitation, authentication, mail, authorization, and audit services.
 
 - [ ] Add migrations for one-to-one customer profiles and pending customer-invitation data, with mandatory company/billing fields, normalized unique NIP, Poland-only address constraints, optional phone/unit fields, and creation/update timestamps.
-- [ ] Implement reusable Polish NIP normalization/checksum validation plus Polish postal-code, phone, and complete-address validation at form, service, and database boundaries where applicable.
+- [x] Implement reusable Polish NIP normalization/checksum validation plus Polish postal-code, phone, and complete-address validation at form, service, and database boundaries where applicable.
 - [ ] Build employee/admin customer list, create/invite, detail, and edit pages. Keep company and billing data strictly internal and use explicit customer-facing view models that exclude it. Invitation acceptance must allow password creation without rendering the retained profile payload; ordering may copy billing data internally without exposing it to customer controllers/templates.
 - [ ] Make customer invitation creation require a unique email and complete company/billing payload, retain that payload while pending, and send the activation link through the identity mail adapter.
 - [ ] Accept a valid customer invitation in one transaction: revalidate uniqueness, create the `CUSTOMER` user, copy pending data to its one-to-one profile, activate the account, and consume the invitation. A failed transaction must leave no partial account/profile.

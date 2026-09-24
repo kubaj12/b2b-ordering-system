@@ -96,6 +96,56 @@ class DatabaseMigrationTests extends PostgreSqlServiceTestSupport {
 	}
 
 	@Test
+	void upgradesPopulatedV004DataWithoutDiscardingLegacyCustomerValues() {
+		MigrationSchema schema = migrations.newSchema();
+		schema.flywayTo(MigrationVersion.fromVersion("004")).migrate();
+		UUID employeeId = UUID.fromString("01998e62-e700-7000-8000-000000000101");
+		UUID customerId = UUID.fromString("01998e62-e700-7000-8000-000000000102");
+		UUID invitationId = UUID.fromString("01998e62-e700-7000-8000-000000000103");
+
+		schema.jdbcTemplate().update("""
+				INSERT INTO identity_user (
+					id, email, password_hash, role, status, created_at, updated_at
+				) VALUES
+					(?, 'employee@example.test', 'hash', 'EMPLOYEE', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+					(?, 'customer@example.test', 'hash', 'CUSTOMER', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", employeeId, customerId);
+		schema.jdbcTemplate().update("""
+				INSERT INTO customer_profile (
+					user_id, company_name, nip, billing_street, billing_building_number,
+					billing_postal_code, billing_city, phone, created_at, updated_at
+				) VALUES (?, 'Firma', '1234567890', 'Prosta', '1', '00-001', 'Warszawa',
+					'+48 600 700 800', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", customerId);
+		schema.jdbcTemplate().update("""
+				INSERT INTO identity_invitation (
+					id, email, role, status, token_hash, invited_by_user_id,
+					created_at, updated_at, expires_at
+				) VALUES (?, 'new@example.test', 'CUSTOMER', 'PENDING', ?, ?,
+					CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '7 days')
+				""", invitationId, new byte[32], employeeId);
+		schema.jdbcTemplate().update("""
+				INSERT INTO customer_invitation_data (
+					invitation_id, company_name, nip, billing_street, billing_building_number,
+					billing_postal_code, billing_city, phone, created_at, updated_at
+				) VALUES (?, 'Nowa Firma', '5260250995', 'Długa', '2', '80-001', 'Gdańsk',
+					'extension 12', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", invitationId);
+
+		assertThat(schema.flyway().migrate().success).isTrue();
+		assertThat(schema.jdbcTemplate().queryForObject(
+				"SELECT phone FROM customer_profile WHERE user_id = ?", String.class, customerId
+		)).isEqualTo("+48600700800");
+		assertThat(schema.jdbcTemplate().queryForObject(
+				"SELECT phone FROM customer_invitation_data WHERE invitation_id = ?", String.class, invitationId
+		)).isEqualTo("extension 12");
+		assertThat(constraintValidated(schema, "customer_profile_nip_checksum")).isFalse();
+		assertThat(constraintValidated(schema, "customer_profile_phone_polish")).isTrue();
+		assertThat(constraintValidated(schema, "customer_invitation_data_nip_checksum")).isTrue();
+		assertThat(constraintValidated(schema, "customer_invitation_data_phone_polish")).isFalse();
+	}
+
+	@Test
 	void validatesAuditActorForeignKeyWhenV002SchemaHasNoUnmatchedActors() {
 		MigrationSchema schema = migrations.newSchema();
 		schema.flywayTo(MigrationVersion.fromVersion("002")).migrate();
@@ -176,6 +226,15 @@ class DatabaseMigrationTests extends PostgreSqlServiceTestSupport {
 				.map(MigrationInfo::getVersion)
 				.filter(Objects::nonNull)
 				.toList();
+	}
+
+	private static Boolean constraintValidated(MigrationSchema schema, String constraintName) {
+		return schema.jdbcTemplate().queryForObject("""
+				SELECT convalidated
+				FROM pg_constraint constraint_def
+				JOIN pg_namespace namespace ON namespace.oid = constraint_def.connamespace
+				WHERE constraint_def.conname = ? AND namespace.nspname = ?
+				""", Boolean.class, constraintName, schema.name());
 	}
 
 }

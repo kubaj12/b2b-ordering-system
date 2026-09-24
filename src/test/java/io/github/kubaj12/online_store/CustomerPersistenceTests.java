@@ -38,7 +38,7 @@ class CustomerPersistenceTests extends PostgreSqlServiceTestSupport {
 
 	@Test
 	void profileIsOneToOneWithACustomerAndNipIsCanonicalAndUnique() {
-		insertProfile(CUSTOMER_ID, "1234567890", null, null, "PL", "00-001", NOW, NOW);
+		insertProfile(CUSTOMER_ID, "5260250995", null, null, "PL", "00-001", NOW, NOW);
 
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM customer_profile WHERE user_id = ? AND user_role = 'CUSTOMER'",
@@ -46,19 +46,19 @@ class CustomerPersistenceTests extends PostgreSqlServiceTestSupport {
 				CUSTOMER_ID
 		)).isOne();
 		assertFailure(
-				() -> insertProfile(CUSTOMER_ID, "1234567891", "2A", "+48 600 700 800", "PL", "00-001", NOW, NOW),
+				() -> insertProfile(CUSTOMER_ID, "1234563218", "2A", "+48600700800", "PL", "00-001", NOW, NOW),
 				"23505", "customer_profile_pkey"
 		);
 		assertFailure(
-				() -> insertProfile(OTHER_CUSTOMER_ID, "1234567890", null, null, "PL", "00-001", NOW, NOW),
+				() -> insertProfile(OTHER_CUSTOMER_ID, "5260250995", null, null, "PL", "00-001", NOW, NOW),
 				"23505", "customer_profile_nip_uq"
 		);
 		assertFailure(
-				() -> insertProfile(OTHER_CUSTOMER_ID, "123-456-78-90", null, null, "PL", "00-001", NOW, NOW),
+				() -> insertProfile(OTHER_CUSTOMER_ID, "526-025-09-95", null, null, "PL", "00-001", NOW, NOW),
 				"23514", "customer_profile_nip_canonical"
 		);
 		assertFailure(
-				() -> insertProfile(EMPLOYEE_ID, "1234567891", null, null, "PL", "00-001", NOW, NOW),
+				() -> insertProfile(EMPLOYEE_ID, "1234563218", null, null, "PL", "00-001", NOW, NOW),
 				"23503", "customer_profile_user_fk"
 		);
 	}
@@ -66,23 +66,23 @@ class CustomerPersistenceTests extends PostgreSqlServiceTestSupport {
 	@Test
 	void profileRequiresCompletePolishBillingDataAndChronologicalTimestamps() {
 		assertFailure(
-				() -> insertProfile(CUSTOMER_ID, "1234567890", null, null, "DE", "00-001", NOW, NOW),
+				() -> insertProfile(CUSTOMER_ID, "5260250995", null, null, "DE", "00-001", NOW, NOW),
 				"23514", "customer_profile_billing_country_poland"
 		);
 		assertFailure(
-				() -> insertProfile(CUSTOMER_ID, "1234567890", null, null, "PL", "00001", NOW, NOW),
+				() -> insertProfile(CUSTOMER_ID, "5260250995", null, null, "PL", "00001", NOW, NOW),
 				"23514", "customer_profile_billing_postal_code_polish"
 		);
 		assertFailure(
-				() -> insertProfile(CUSTOMER_ID, "1234567890", "   ", null, "PL", "00-001", NOW, NOW),
+				() -> insertProfile(CUSTOMER_ID, "5260250995", "   ", null, "PL", "00-001", NOW, NOW),
 				"23514", "customer_profile_billing_unit_number_nonblank"
 		);
 		assertFailure(
-				() -> insertProfile(CUSTOMER_ID, "1234567890", null, " ", "PL", "00-001", NOW, NOW),
-				"23514", "customer_profile_phone_nonblank"
+				() -> insertProfile(CUSTOMER_ID, "5260250995", null, " ", "PL", "00-001", NOW, NOW),
+				"23514", "customer_profile_phone_polish"
 		);
 		assertFailure(
-				() -> insertProfile(CUSTOMER_ID, "1234567890", null, null, "PL", "00-001", NOW, NOW.minusSeconds(1)),
+				() -> insertProfile(CUSTOMER_ID, "5260250995", null, null, "PL", "00-001", NOW, NOW.minusSeconds(1)),
 				"23514", "customer_profile_updated_at_chronological"
 		);
 		assertFailure(
@@ -91,8 +91,20 @@ class CustomerPersistenceTests extends PostgreSqlServiceTestSupport {
 							user_id, company_name, nip, billing_street, billing_building_number,
 							billing_postal_code, billing_city, billing_country, created_at, updated_at
 						) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
-						""", CUSTOMER_ID, "1234567890", "Prosta", "1", "00-001", "Warszawa", "PL", offset(NOW), offset(NOW)),
+						""", CUSTOMER_ID, "5260250995", "Prosta", "1", "00-001", "Warszawa", "PL", offset(NOW), offset(NOW)),
 				"23502", "company_name"
+		);
+	}
+
+	@Test
+	void profileRejectsInvalidNipChecksumAndNoncanonicalPolishPhone() {
+		assertFailure(
+				() -> insertProfile(CUSTOMER_ID, "5260250994", null, null, "PL", "00-001", NOW, NOW),
+				"23514", "customer_profile_nip_checksum"
+		);
+		assertFailure(
+				() -> insertProfile(CUSTOMER_ID, "5260250995", null, "+48 600 700 800", "PL", "00-001", NOW, NOW),
+				"23514", "customer_profile_phone_polish"
 		);
 	}
 
@@ -102,25 +114,25 @@ class CustomerPersistenceTests extends PostgreSqlServiceTestSupport {
 		UUID replacementInvitation = insertInvitation("replacement@example.test", "CUSTOMER", 2);
 		UUID employeeInvitation = insertInvitation("worker@example.test", "EMPLOYEE", 3);
 
-		insertInvitationData(firstInvitation, "1234567890", null, null, "PL", "00-001", NOW, NOW);
+		insertInvitationData(firstInvitation, "5260250995", null, null, "PL", "00-001", NOW, NOW);
 
 		assertFailure(
-				() -> insertInvitationData(replacementInvitation, "1234567890", "4", "+48 600 700 800", "PL", "00-001", NOW, NOW),
+				() -> insertInvitationData(replacementInvitation, "5260250995", "4", "+48600700800", "PL", "00-001", NOW, NOW),
 				"23505", "customer_invitation_data_nip_uq"
 		);
 		assertFailure(
-				() -> insertInvitationData(firstInvitation, "1234567891", null, null, "PL", "00-001", NOW, NOW),
+				() -> insertInvitationData(firstInvitation, "1234563218", null, null, "PL", "00-001", NOW, NOW),
 				"23505", "customer_invitation_data_pkey"
 		);
 		jdbcTemplate.update("DELETE FROM customer_invitation_data WHERE invitation_id = ?", firstInvitation);
-		insertInvitationData(replacementInvitation, "1234567890", "4", "+48 600 700 800", "PL", "00-001", NOW, NOW);
+		insertInvitationData(replacementInvitation, "5260250995", "4", "+48600700800", "PL", "00-001", NOW, NOW);
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM customer_invitation_data WHERE nip = ?",
 				Integer.class,
-				"1234567890"
+				"5260250995"
 		)).isOne();
 		assertFailure(
-				() -> insertInvitationData(employeeInvitation, "1234567891", null, null, "PL", "00-001", NOW, NOW),
+				() -> insertInvitationData(employeeInvitation, "1234563218", null, null, "PL", "00-001", NOW, NOW),
 				"23503", "customer_invitation_data_invitation_fk"
 		);
 	}
@@ -130,19 +142,19 @@ class CustomerPersistenceTests extends PostgreSqlServiceTestSupport {
 		UUID invitation = insertInvitation("new@example.test", "CUSTOMER", 4);
 
 		assertFailure(
-				() -> insertInvitationData(invitation, "123 456 7890", null, null, "PL", "00-001", NOW, NOW),
+				() -> insertInvitationData(invitation, "526 025 09 95", null, null, "PL", "00-001", NOW, NOW),
 				"23514", "customer_invitation_data_nip_canonical"
 		);
 		assertFailure(
-				() -> insertInvitationData(invitation, "1234567890", null, null, "CZ", "00-001", NOW, NOW),
+				() -> insertInvitationData(invitation, "5260250995", null, null, "CZ", "00-001", NOW, NOW),
 				"23514", "customer_invitation_data_billing_country_poland"
 		);
 		assertFailure(
-				() -> insertInvitationData(invitation, "1234567890", null, null, "PL", "001-01", NOW, NOW),
+				() -> insertInvitationData(invitation, "5260250995", null, null, "PL", "001-01", NOW, NOW),
 				"23514", "customer_invitation_data_billing_postal_code_polish"
 		);
 		assertFailure(
-				() -> insertInvitationData(invitation, "1234567890", null, null, "PL", "00-001", NOW, NOW.minusSeconds(1)),
+				() -> insertInvitationData(invitation, "5260250995", null, null, "PL", "00-001", NOW, NOW.minusSeconds(1)),
 				"23514", "customer_invitation_data_updated_at_chronological"
 		);
 	}
