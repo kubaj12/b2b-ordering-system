@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org"
+ th:replace="~{layout/application :: layout('Klienci', 'staff-customers', ~{::content})}"><body>
+<section th:fragment="content"><div class="d-flex justify-content-between align-items-center mb-3">
+ <h1>Klienci</h1><a class="btn btn-primary" th:href="@{/staff/customers/new}">Zaproś klienta</a></div>
+<div class="table-responsive"><table class="table bg-body"><caption>Aktywowane konta klientów</caption>
+ <thead><tr><th>Firma</th><th>NIP</th><th>E-mail</th><th>Status</th><th></th></tr></thead><tbody>
+ <tr th:each="customer : ${directory.customers}"><td th:text="${customer.companyName}"></td><td th:text="${customer.nip}"></td>
+ <td th:text="${customer.email}"></td><td th:text="${customer.status == 'ACTIVE' ? 'Aktywne' : 'Zablokowane'}"></td>
+ <td><a th:href="@{/staff/customers/{id}(id=${customer.accountId})}">Szczegóły</a></td></tr></tbody></table></div>
+<h2 class="h4">Oczekujące zaproszenia</h2><p th:if="${#lists.isEmpty(directory.invitations)}">Brak oczekujących zaproszeń.</p>
+<div class="table-responsive" th:unless="${#lists.isEmpty(directory.invitations)}"><table class="table bg-body"><thead><tr><th>Firma</th><th>E-mail</th><th>Status</th><th></th></tr></thead><tbody>
+ <tr th:each="inv : ${directory.invitations}"><td th:text="${inv.profile.companyName}"></td><td th:text="${inv.email}"></td>
+ <td th:text="${inv.status == 'EXPIRED' ? 'Wygasłe' : 'Oczekujące'}"></td><td><form method="post" th:action="@{/invitations/resend}">
+ <input type="hidden" name="invitationId" th:value="${inv.invitationId}"><button class="btn btn-sm btn-outline-primary">Wyślij ponownie</button></form></td></tr>
+</tbody></table></div></section></body></html>

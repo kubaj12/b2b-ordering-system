@@ -1,0 +1,11 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org"
+ th:replace="~{layout/application :: layout('Edytuj klienta', 'staff-customers', ~{::content})}"><body>
+<section th:fragment="content"><h1>Edytuj dane klienta</h1><form method="post" th:action="@{/staff/customers/{id}(id=${customer.accountId})}" th:object="${form}" class="vstack gap-3">
+<div th:replace="~{fragments/forms :: errorSummary}"></div>
+<div><label for="companyName">Nazwa prawna firmy</label><input id="companyName" class="form-control" th:field="*{companyName}" required></div>
+<div><label for="nip">NIP</label><input id="nip" class="form-control" th:field="*{nip}" required></div>
+<div><label for="street">Ulica</label><input id="street" class="form-control" th:field="*{street}" required></div>
+<div class="row"><div class="col"><label for="buildingNumber">Numer budynku</label><input id="buildingNumber" class="form-control" th:field="*{buildingNumber}" required></div><div class="col"><label for="unitNumber">Numer lokalu</label><input id="unitNumber" class="form-control" th:field="*{unitNumber}"></div></div>
+<div class="row"><div class="col"><label for="postalCode">Kod pocztowy</label><input id="postalCode" class="form-control" th:field="*{postalCode}" required></div><div class="col"><label for="city">Miasto</label><input id="city" class="form-control" th:field="*{city}" required></div></div>
+<input type="hidden" th:field="*{country}"><div><label for="phone">Telefon (opcjonalnie)</label><input id="phone" class="form-control" th:field="*{phone}"></div>
+<button class="btn btn-primary align-self-start">Zapisz zmiany</button></form></section></body></html>

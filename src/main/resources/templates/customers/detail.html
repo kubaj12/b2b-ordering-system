@@ -1,0 +1,11 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org"
+ th:replace="~{layout/application :: layout('Klient', 'staff-customers', ~{::content})}"><body>
+<section th:fragment="content"><div class="d-flex justify-content-between"><h1 th:text="${customer.profile.companyName}">Klient</h1>
+ <a class="btn btn-outline-primary" th:href="@{/staff/customers/{id}/edit(id=${customer.accountId})}">Edytuj</a></div>
+<dl class="row bg-body p-3"><dt class="col-sm-4">E-mail</dt><dd class="col-sm-8" th:text="${customer.email}"></dd>
+<dt class="col-sm-4">Status</dt><dd class="col-sm-8" th:text="${customer.status == 'ACTIVE' ? 'Aktywne' : 'Zablokowane'}"></dd>
+<dt class="col-sm-4">NIP</dt><dd class="col-sm-8" th:text="${customer.profile.nip.value}"></dd>
+<dt class="col-sm-4">Adres rozliczeniowy</dt><dd class="col-sm-8"><span th:text="${customer.profile.billingAddress.street + ' ' + customer.profile.billingAddress.buildingNumber}"></span><span th:if="${customer.profile.billingAddress.unitNumber != null}" th:text="${'/' + customer.profile.billingAddress.unitNumber}"></span><br><span th:text="${customer.profile.billingAddress.postalCode.value + ' ' + customer.profile.billingAddress.city}"></span><br>Polska</dd>
+<dt class="col-sm-4">Telefon</dt><dd class="col-sm-8" th:text="${customer.profile.phone == null ? '—' : customer.profile.phone.value}"></dd></dl>
+<form method="post" th:action="@{/staff/customers/{id}/{action}(id=${customer.accountId},action=${customer.status == 'ACTIVE' ? 'block' : 'unblock'})}">
+<button class="btn btn-outline-danger" th:text="${customer.status == 'ACTIVE' ? 'Zablokuj konto' : 'Odblokuj konto'}"></button></form></section></body></html>

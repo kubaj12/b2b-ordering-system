@@ -6,7 +6,10 @@ import io.github.kubaj12.online_store.shared.auditing.AuditActor;
 import io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.List;
+import java.util.function.Consumer;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,12 +28,27 @@ public class InvitationService {
     private final PasswordEncoder encoder;
     private final Clock clock;
     private final TransactionTemplate transactions;
-    public InvitationService(InvitationStore store, PasswordEncoder encoder, Clock clock, PlatformTransactionManager manager, AccountLinkMail mail, AuditEventRecorder audit) {
+    private final List<InvitationLifecycleHandler> lifecycleHandlers;
+    @Autowired
+    public InvitationService(InvitationStore store, PasswordEncoder encoder, Clock clock, PlatformTransactionManager manager, AccountLinkMail mail, AuditEventRecorder audit,
+            List<InvitationLifecycleHandler> lifecycleHandlers) {
         this.audit = audit; this.mail = mail; this.store = store; this.encoder = encoder; this.clock = clock;
         this.transactions = new TransactionTemplate(manager);
+        this.lifecycleHandlers = List.copyOf(lifecycleHandlers);
+    }
+    public InvitationService(InvitationStore store, PasswordEncoder encoder, Clock clock,
+            PlatformTransactionManager manager, AccountLinkMail mail, AuditEventRecorder audit) {
+        this(store, encoder, clock, manager, mail, audit, List.of());
     }
     public void inviteEmployee(String email, UUID actor) { issue(email, InvitationRole.EMPLOYEE, actor); }
+    public IssuedInvitation inviteCustomer(String email, UUID actor, Consumer<UUID> contribution) {
+        return issue(email, InvitationRole.CUSTOMER, actor, contribution);
+    }
     public IssuedInvitation issue(String email, InvitationRole role, UUID actor) {
+        return issue(email, role, actor, ignored -> { });
+    }
+    /** The contribution runs after the invitation insert in the same transaction. */
+    public IssuedInvitation issue(String email, InvitationRole role, UUID actor, Consumer<UUID> contribution) {
         String normalized = NormalizedEmail.of(email).value();
         return transactions.execute(status -> {
             store.lockEmail(normalized);
@@ -38,7 +56,9 @@ public class InvitationService {
             var now = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
             store.expirePending(normalized, now);
             if (store.accountExists(normalized) || store.pendingExists(normalized)) throw new InvitationException();
-            return insert(normalized, role, actor, now);
+            var issued = insert(normalized, role, actor, now);
+            contribution.accept(issued.id());
+            return issued;
         });
     }
     /** Resend preserves the stored role and serializes with acceptance, including old-token acceptance. */
@@ -57,7 +77,9 @@ public class InvitationService {
             }
             // An expired historical invitation must never replace a newer pending invitation.
             if (store.pendingExists(invitation.email())) throw new InvitationException();
-            return insert(invitation.email(), invitation.role(), actor, now);
+            var replacement = insert(invitation.email(), invitation.role(), actor, now);
+            lifecycleHandlers.forEach(handler -> handler.onResend(invitation.id(), replacement.id(), invitation.role().name(), now));
+            return replacement;
         });
     }
     private IssuedInvitation insert(String email, InvitationRole role, UUID actor, java.time.Instant now) {
@@ -92,6 +114,7 @@ public class InvitationService {
             }
             UUID accountId = UUID.randomUUID();
             if (!store.createAccount(accountId, invitation.email(), invitation.role(), hash, now)) return null;
+            for (var handler : lifecycleHandlers) handler.onAccept(invitation.id(), accountId, invitation.role().name(), now);
             store.accept(invitation.id(), accountId, now);
             audit.record(IdentityAudit.ACCEPTED.event(invitation.id(), new AuditActor(accountId)));
             return accountId;

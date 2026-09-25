@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org"
+ th:replace="~{layout/application :: layout('Zaproś klienta', 'staff-customers', ~{::content})}"><body>
+<section th:fragment="content"><h1>Zaproś klienta</h1><p>Dane firmy i rozliczeniowe są widoczne wyłącznie dla personelu.</p>
+<form method="post" th:action="@{/staff/customers}" th:object="${form}" class="vstack gap-3">
+ <div th:replace="~{fragments/forms :: errorSummary}"></div>
+ <div><label for="email" class="form-label">E-mail</label><input id="email" class="form-control" type="email" th:field="*{email}" required maxlength="254"><div th:replace="~{fragments/forms :: fieldErrors('email')}"></div></div>
+ <fieldset class="vstack gap-3"><legend class="h4">Dane firmy i adres rozliczeniowy</legend>
+ <div><label for="companyName">Nazwa prawna firmy</label><input id="companyName" class="form-control" th:field="*{profile.companyName}" required></div>
+ <div><label for="nip">NIP</label><input id="nip" class="form-control" th:field="*{profile.nip}" required inputmode="numeric"></div>
+ <div><label for="street">Ulica</label><input id="street" class="form-control" th:field="*{profile.street}" required></div>
+ <div class="row"><div class="col"><label for="buildingNumber">Numer budynku</label><input id="buildingNumber" class="form-control" th:field="*{profile.buildingNumber}" required></div><div class="col"><label for="unitNumber">Numer lokalu</label><input id="unitNumber" class="form-control" th:field="*{profile.unitNumber}"></div></div>
+ <div class="row"><div class="col"><label for="postalCode">Kod pocztowy</label><input id="postalCode" class="form-control" th:field="*{profile.postalCode}" required placeholder="00-000"></div><div class="col"><label for="city">Miasto</label><input id="city" class="form-control" th:field="*{profile.city}" required></div></div>
+ <input type="hidden" th:field="*{profile.country}"><div><label for="phone">Telefon (opcjonalnie)</label><input id="phone" class="form-control" type="tel" th:field="*{profile.phone}"></div>
+ </fieldset><button class="btn btn-primary align-self-start" type="submit">Wyślij zaproszenie</button></form></section></body></html>
