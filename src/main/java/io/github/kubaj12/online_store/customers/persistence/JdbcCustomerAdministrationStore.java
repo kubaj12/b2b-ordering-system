@@ -56,7 +56,15 @@ public class JdbcCustomerAdministrationStore implements CustomerAdministrationSt
                 "SELECT nip FROM customer_invitation_data WHERE invitation_id = ?",
                 String.class, invitationId);
         if (nip == null) throw new IllegalStateException("customer invitation payload missing");
-        requireNipAvailable(nip, null, now);
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?, 941733))", rs -> { }, nip);
+        boolean exists = Boolean.TRUE.equals(jdbc.queryForObject("""
+            SELECT EXISTS (
+              SELECT 1 FROM customer_profile WHERE nip = ?
+              UNION ALL SELECT 1 FROM customer_invitation_data d JOIN identity_invitation i ON i.id=d.invitation_id
+                WHERE d.nip = ? AND d.invitation_id <> ? AND i.status = 'PENDING' AND i.expires_at > ?
+            )
+            """, Boolean.class, nip, nip, invitationId, utc(now)));
+        if (exists) throw new org.springframework.dao.DuplicateKeyException("customer NIP already exists");
     }
     @Transactional
     public void addInvitationPayload(UUID id, CustomerProfileData p, Instant now) {

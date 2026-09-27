@@ -30,6 +30,15 @@ public final class CustomerInvitationLifecycleHandler implements InvitationLifec
 
     @Override
     public void onAccept(UUID invitationId, UUID accountId, String role, Instant now) {
-        if ("CUSTOMER".equals(role)) store.createProfileFromInvitation(invitationId, accountId, now);
+        if ("CUSTOMER".equals(role)) {
+            try {
+                store.requireInvitationNipAvailable(invitationId, now);
+                store.createProfileFromInvitation(invitationId, accountId, now);
+            } catch (DataIntegrityViolationException exception) {
+                // Keep persistence details out of the anonymous activation endpoint. Throwing
+                // also rolls back the account insert performed earlier in the same transaction.
+                throw new InvitationException();
+            }
+        }
     }
 }

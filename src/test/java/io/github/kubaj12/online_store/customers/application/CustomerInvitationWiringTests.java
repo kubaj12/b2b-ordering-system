@@ -69,4 +69,34 @@ class CustomerInvitationWiringTests {
 
         verify(store, never()).transferInvitationPayload(any(), any(), any());
     }
+
+    @Test
+    void customerAcceptanceRevalidatesNipBeforeCreatingTheProfile() {
+        CustomerAdministrationStore store = mock(CustomerAdministrationStore.class);
+        var handler = new CustomerInvitationLifecycleHandler(store);
+        UUID invitationId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-09-27T12:00:00Z");
+
+        handler.onAccept(invitationId, accountId, "CUSTOMER", now);
+
+        var order = inOrder(store);
+        order.verify(store).requireInvitationNipAvailable(invitationId, now);
+        order.verify(store).createProfileFromInvitation(invitationId, accountId, now);
+    }
+
+    @Test
+    void customerAcceptanceReportsANipClaimWithoutCreatingTheProfile() {
+        CustomerAdministrationStore store = mock(CustomerAdministrationStore.class);
+        var handler = new CustomerInvitationLifecycleHandler(store);
+        UUID invitationId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-09-27T12:00:00Z");
+        doThrow(new DuplicateKeyException("claimed"))
+                .when(store).requireInvitationNipAvailable(invitationId, now);
+
+        assertThatThrownBy(() -> handler.onAccept(invitationId, UUID.randomUUID(), "CUSTOMER", now))
+                .isInstanceOf(InvitationException.class);
+
+        verify(store, never()).createProfileFromInvitation(any(), any(), any());
+    }
 }
