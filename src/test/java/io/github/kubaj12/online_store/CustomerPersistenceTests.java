@@ -109,28 +109,23 @@ class CustomerPersistenceTests extends PostgreSqlServiceTestSupport {
 	}
 
 	@Test
-	void customerInvitationDataIsOneToOneUniquePayloadForCustomerInvitations() {
+	void customerInvitationDataIsOneToOneAndAllowsHistoricalNipPayloads() {
 		UUID firstInvitation = insertInvitation("first@example.test", "CUSTOMER", 1);
 		UUID replacementInvitation = insertInvitation("replacement@example.test", "CUSTOMER", 2);
 		UUID employeeInvitation = insertInvitation("worker@example.test", "EMPLOYEE", 3);
 
 		insertInvitationData(firstInvitation, "5260250995", null, null, "PL", "00-001", NOW, NOW);
 
-		assertFailure(
-				() -> insertInvitationData(replacementInvitation, "5260250995", "4", "+48600700800", "PL", "00-001", NOW, NOW),
-				"23505", "customer_invitation_data_nip_uq"
-		);
+		insertInvitationData(replacementInvitation, "5260250995", "4", "+48600700800", "PL", "00-001", NOW, NOW);
 		assertFailure(
 				() -> insertInvitationData(firstInvitation, "1234563218", null, null, "PL", "00-001", NOW, NOW),
 				"23505", "customer_invitation_data_pkey"
 		);
-		jdbcTemplate.update("DELETE FROM customer_invitation_data WHERE invitation_id = ?", firstInvitation);
-		insertInvitationData(replacementInvitation, "5260250995", "4", "+48600700800", "PL", "00-001", NOW, NOW);
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM customer_invitation_data WHERE nip = ?",
 				Integer.class,
 				"5260250995"
-		)).isOne();
+		)).isEqualTo(2);
 		assertFailure(
 				() -> insertInvitationData(employeeInvitation, "1234563218", null, null, "PL", "00-001", NOW, NOW),
 				"23503", "customer_invitation_data_invitation_fk"

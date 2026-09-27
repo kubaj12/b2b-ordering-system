@@ -39,16 +39,24 @@ public class JdbcCustomerAdministrationStore implements CustomerAdministrationSt
             .stream().findFirst();
     }
     @Transactional
-    public void requireNipAvailable(String nip, UUID editedAccountId) {
+    public void requireNipAvailable(String nip, UUID editedAccountId, Instant now) {
         jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?, 941733))", rs -> { }, nip);
         boolean exists = Boolean.TRUE.equals(jdbc.queryForObject("""
             SELECT EXISTS (
               SELECT 1 FROM customer_profile WHERE nip = ? AND (?::uuid IS NULL OR user_id <> ?::uuid)
               UNION ALL SELECT 1 FROM customer_invitation_data d JOIN identity_invitation i ON i.id=d.invitation_id
-                WHERE d.nip = ? AND i.status IN ('PENDING','EXPIRED')
+                WHERE d.nip = ? AND i.status = 'PENDING' AND i.expires_at > ?
             )
-            """, Boolean.class, nip, editedAccountId, editedAccountId, nip));
+            """, Boolean.class, nip, editedAccountId, editedAccountId, nip, utc(now)));
         if (exists) throw new org.springframework.dao.DuplicateKeyException("customer NIP already exists");
+    }
+    @Transactional
+    public void requireInvitationNipAvailable(UUID invitationId, Instant now) {
+        String nip = jdbc.queryForObject(
+                "SELECT nip FROM customer_invitation_data WHERE invitation_id = ?",
+                String.class, invitationId);
+        if (nip == null) throw new IllegalStateException("customer invitation payload missing");
+        requireNipAvailable(nip, null, now);
     }
     @Transactional
     public void addInvitationPayload(UUID id, CustomerProfileData p, Instant now) {

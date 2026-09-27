@@ -2,7 +2,9 @@ package io.github.kubaj12.online_store.customers.application;
 
 import java.time.Instant;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
+import io.github.kubaj12.online_store.identityaccess.application.InvitationException;
 import io.github.kubaj12.online_store.identityaccess.application.InvitationLifecycleHandler;
 
 /** Customer-owned invitation work, intentionally independent of InvitationService to avoid a bean cycle. */
@@ -16,7 +18,14 @@ public final class CustomerInvitationLifecycleHandler implements InvitationLifec
 
     @Override
     public void onResend(UUID oldId, UUID newId, String role, Instant now) {
-        if ("CUSTOMER".equals(role)) store.transferInvitationPayload(oldId, newId, now);
+        if ("CUSTOMER".equals(role)) {
+            try {
+                store.requireInvitationNipAvailable(oldId, now);
+                store.transferInvitationPayload(oldId, newId, now);
+            } catch (DataIntegrityViolationException exception) {
+                throw new InvitationException();
+            }
+        }
     }
 
     @Override

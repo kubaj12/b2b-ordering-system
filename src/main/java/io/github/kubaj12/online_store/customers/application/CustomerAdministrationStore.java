@@ -14,7 +14,8 @@ public interface CustomerAdministrationStore {
     List<Summary> customers();
     List<Pending> pendingInvitations();
     Optional<Detail> detail(UUID accountId);
-    void requireNipAvailable(String nip, UUID editedAccountId);
+    void requireNipAvailable(String nip, UUID editedAccountId, Instant now);
+    void requireInvitationNipAvailable(UUID invitationId, Instant now);
     void addInvitationPayload(UUID invitationId, CustomerProfileData profile, Instant now);
     void transferInvitationPayload(UUID previousId, UUID replacementId, Instant now);
     void createProfileFromInvitation(UUID invitationId, UUID accountId, Instant now);

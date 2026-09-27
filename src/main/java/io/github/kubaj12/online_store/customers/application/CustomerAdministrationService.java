@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import io.github.kubaj12.online_store.identityaccess.application.*;
@@ -27,20 +28,21 @@ public class CustomerAdministrationService {
         return store.detail(id).orElseThrow(CustomerNotFoundException::new);
     }
     public UUID invite(String email, CustomerProfileData profile, UUID actor) {
+        if (profile == null) throw new IllegalArgumentException("complete customer profile required");
         var now = now();
         try {
             return invitations.inviteCustomer(email, actor, id -> {
-                store.requireNipAvailable(profile.nip().value(), null);
+                store.requireNipAvailable(profile.nip().value(), null, now);
                 store.addInvitationPayload(id, profile, now);
             }).id();
-        } catch (InvitationException exception) {
+        } catch (InvitationException | DataIntegrityViolationException exception) {
             throw new CustomerInvitationConflictException();
         }
     }
     @Transactional
     public void update(UUID id, CustomerProfileData profile) {
         if (store.detail(id).isEmpty()) throw new CustomerNotFoundException();
-        store.requireNipAvailable(profile.nip().value(), id);
+        store.requireNipAvailable(profile.nip().value(), id, now());
         store.update(id, profile, now());
     }
     public void block(UUID actor, UUID customer) { statuses.block(actor, customer); }

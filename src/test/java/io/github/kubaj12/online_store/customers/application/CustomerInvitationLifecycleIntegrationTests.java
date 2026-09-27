@@ -28,7 +28,7 @@ class CustomerInvitationLifecycleIntegrationTests extends PostgreSqlServiceTestS
         new IdentityDatabaseFixture(jdbc).insertActiveUser(employee, "employee@example.test", "EMPLOYEE", now);
 
         var first = invitations.inviteCustomer("first@example.test", employee, invitationId -> {
-            store.requireNipAvailable(RELEASED_NIP, null);
+            store.requireNipAvailable(RELEASED_NIP, null, now);
             store.addInvitationPayload(invitationId, profile(RELEASED_NIP), now);
         });
         UUID customer = invitations.accept(first.token().value(), PASSWORD);
@@ -40,7 +40,7 @@ class CustomerInvitationLifecycleIntegrationTests extends PostgreSqlServiceTestS
 
         customers.update(customer, profile(REPLACEMENT_NIP));
         var second = invitations.inviteCustomer("second@example.test", employee, invitationId -> {
-            store.requireNipAvailable(RELEASED_NIP, null);
+            store.requireNipAvailable(RELEASED_NIP, null, testClock().instant());
             store.addInvitationPayload(invitationId, profile(RELEASED_NIP), testClock().instant());
         });
 
