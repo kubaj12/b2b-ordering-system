@@ -45,7 +45,7 @@ public class CustomerAdministrationService {
         store.requireNipAvailable(profile.nip().value(), id, now());
         store.update(id, profile, now());
     }
-    public void block(UUID actor, UUID customer) { statuses.block(actor, customer); }
-    public void unblock(UUID actor, UUID customer) { statuses.unblock(actor, customer); }
+    public void block(UUID actor, UUID customer) { statuses.blockCustomer(actor, customer); }
+    public void unblock(UUID actor, UUID customer) { statuses.unblockCustomer(actor, customer); }
     private java.time.Instant now() { return clock.instant().truncatedTo(ChronoUnit.MICROS); }
 }

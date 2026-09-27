@@ -11,17 +11,21 @@ import io.github.kubaj12.online_store.shared.auditing.*;
 @Service
 @Transactional
 public class AccountStatusService {
+    private enum TargetScope { ANY, CUSTOMER, EMPLOYEE }
     private final AccountStatusStore store;
     private final AuditEventRecorder audit;
     private final Clock clock;
     public AccountStatusService(AccountStatusStore store, AuditEventRecorder audit, Clock clock) {
         this.store = store; this.audit = audit; this.clock = clock;
     }
-    public void block(UUID actor, UUID target) { change(actor, target, IdentityAudit.Status.BLOCKED, false); }
-    public void unblock(UUID actor, UUID target) { change(actor, target, IdentityAudit.Status.ACTIVE, false); }
+    public void block(UUID actor, UUID target) { change(actor, target, IdentityAudit.Status.BLOCKED, TargetScope.ANY); }
+    public void unblock(UUID actor, UUID target) { change(actor, target, IdentityAudit.Status.ACTIVE, TargetScope.ANY); }
+    /** Customer-directory actions must not change a staff account through a customer URL. */
+    public void blockCustomer(UUID actor, UUID target) { change(actor, target, IdentityAudit.Status.BLOCKED, TargetScope.CUSTOMER); }
+    public void unblockCustomer(UUID actor, UUID target) { change(actor, target, IdentityAudit.Status.ACTIVE, TargetScope.CUSTOMER); }
     /** Employee-directory actions retain their narrower employee-only target boundary. */
-    public void changeEmployee(UUID actor, UUID target, IdentityAudit.Status next) { change(actor, target, next, true); }
-    private void change(UUID actorId, UUID targetId, IdentityAudit.Status next, boolean employeeOnly) {
+    public void changeEmployee(UUID actor, UUID target, IdentityAudit.Status next) { change(actor, target, next, TargetScope.EMPLOYEE); }
+    private void change(UUID actorId, UUID targetId, IdentityAudit.Status next, TargetScope scope) {
         if (actorId == null || targetId == null) throw new AccessDeniedException("account status change denied");
         var accounts = store.lockAccounts(actorId, targetId);
         var actor = accounts.stream().filter(a -> a.id().equals(actorId)).findFirst()
@@ -31,7 +35,9 @@ public class AccountStatusService {
         boolean permitted = "ACTIVE".equals(actor.status()) && (
             "ADMIN".equals(actor.role()) && ("CUSTOMER".equals(target.role()) || "EMPLOYEE".equals(target.role()))
             || "EMPLOYEE".equals(actor.role()) && "CUSTOMER".equals(target.role()));
-        if (!permitted || employeeOnly && (!"ADMIN".equals(actor.role()) || !"EMPLOYEE".equals(target.role())))
+        if (!permitted
+                || (scope == TargetScope.CUSTOMER && !"CUSTOMER".equals(target.role()))
+                || (scope == TargetScope.EMPLOYEE && (!"ADMIN".equals(actor.role()) || !"EMPLOYEE".equals(target.role()))))
             throw new AccessDeniedException("account status change denied");
         var previous = IdentityAudit.Status.valueOf(target.status());
         if (previous == next) return;

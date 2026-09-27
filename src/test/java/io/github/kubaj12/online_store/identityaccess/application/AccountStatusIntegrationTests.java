@@ -7,11 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.support.TransactionTemplate;
+import io.github.kubaj12.online_store.customers.application.CustomerAdministrationService;
 import io.github.kubaj12.online_store.testsupport.*;
 import static org.assertj.core.api.Assertions.*;
 
 class AccountStatusIntegrationTests extends PostgreSqlServiceTestSupport {
     @Autowired AccountStatusService statuses;
+    @Autowired CustomerAdministrationService customers;
     @Autowired AccountStatusStore store;
     @Autowired AccountAccessService access;
     @Autowired LoginAttemptService logins;
@@ -41,6 +43,17 @@ class AccountStatusIntegrationTests extends PostgreSqlServiceTestSupport {
         }
         jdbc.update("UPDATE identity_user SET status = 'BLOCKED' WHERE id = ?", employee);
         assertThatThrownBy(() -> statuses.unblock(employee, customer)).isInstanceOf(AccessDeniedException.class);
+    }
+    @Test void customerActionsRejectEmployeeTargetsEvenForAdministrators() {
+        assertThatThrownBy(() -> customers.block(admin, employee)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> customers.unblock(admin, employee)).isInstanceOf(AccessDeniedException.class);
+        assertThat(jdbc.queryForObject("SELECT status FROM identity_user WHERE id = ?", String.class, employee)).isEqualTo("ACTIVE");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_event", Integer.class)).isZero();
+
+        customers.block(employee, customer);
+        customers.unblock(admin, customer);
+        assertThat(jdbc.queryForObject("SELECT status FROM identity_user WHERE id = ?", String.class, customer)).isEqualTo("ACTIVE");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_event WHERE event_type = 'identity.account.status_changed'", Integer.class)).isEqualTo(2);
     }
     @Test void revokesRegisteredSessionsAndDoesNotRestoreVersionAfterUnblock() {
         assertThat(logins.completeSuccessfulLogin(principal(), "127.0.0.1", "opaque-session", 1800)).isTrue();

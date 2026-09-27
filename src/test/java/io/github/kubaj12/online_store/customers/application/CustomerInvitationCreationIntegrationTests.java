@@ -61,6 +61,42 @@ class CustomerInvitationCreationIntegrationTests extends PostgreSqlServiceTestSu
     }
 
     @Test
+    void resendTransfersTheCompletePayloadAndRecordsCustomerInvitationEvents() {
+        UUID employee = employee();
+        CustomerProfileData profile = profile(NIP);
+        UUID original = customers.invite(EMAIL, profile, employee);
+
+        var replacement = invitations.resend(original, employee);
+
+        assertThat(jdbc.queryForObject("SELECT status FROM identity_invitation WHERE id = ?", String.class, original))
+                .isEqualTo("REVOKED");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM customer_invitation_data WHERE invitation_id = ?", Integer.class, original))
+                .isZero();
+        assertThat(jdbc.queryForMap("""
+                SELECT company_name, nip, billing_street, billing_building_number, billing_unit_number,
+                       billing_postal_code, billing_city, billing_country, phone
+                FROM customer_invitation_data WHERE invitation_id = ?
+                """, replacement.id())).containsAllEntriesOf(java.util.Map.of(
+                        "company_name", profile.companyName(),
+                        "nip", NIP,
+                        "billing_street", profile.billingAddress().street(),
+                        "billing_building_number", profile.billingAddress().buildingNumber(),
+                        "billing_unit_number", profile.billingAddress().unitNumber(),
+                        "billing_postal_code", profile.billingAddress().postalCode().value(),
+                        "billing_city", profile.billingAddress().city(),
+                        "billing_country", "PL",
+                        "phone", profile.phone().value()));
+        assertThat(jdbc.queryForList("""
+                SELECT event_type FROM audit_event WHERE target_id IN (?, ?) ORDER BY occurred_at, id
+                """, String.class, original.toString(), replacement.id().toString()))
+                .containsExactlyInAnyOrder("identity.invitation.issued", "identity.invitation.revoked", "identity.invitation.issued");
+
+        UUID account = invitations.accept(replacement.token().value(), "CorrectHorseBattery12");
+        assertThat(jdbc.queryForObject("SELECT nip FROM customer_profile WHERE user_id = ?", String.class, account))
+                .isEqualTo(NIP);
+    }
+
+    @Test
     void duplicateNormalizedEmailIsRejectedWithoutReplacingPayloadOrSendingAnotherLink() {
         UUID employee = employee();
         UUID original = customers.invite(EMAIL, profile(NIP), employee);
