@@ -90,6 +90,10 @@ public class BrowserSecurityConfiguration {
 		authenticationManager.setAuthenticationEventPublisher(new DefaultAuthenticationEventPublisher(applicationEventPublisher));
 		http.authenticationManager(authenticationManager);
 		http.authorizeHttpRequests(authorize -> authorize.requestMatchers(browserPublicRequestMatcher).permitAll()
+				// Customer profile records and their administration forms are staff-only. Keep
+				// this boundary in the request filter chain so manipulated IDs are rejected
+				// before controller argument binding or application-service lookups.
+				.requestMatchers("/staff/customers", "/staff/customers/**").hasAnyRole("EMPLOYEE", "ADMIN")
 				.anyRequest().authenticated());
 		http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint)
 				.accessDeniedHandler(accessDeniedHandler));
