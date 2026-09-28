@@ -96,6 +96,118 @@ class DatabaseMigrationTests extends PostgreSqlServiceTestSupport {
 	}
 
 	@Test
+	void enforcesCatalogAndPricingIntegrityInPostgreSql() {
+		MigrationSchema schema = migrations.newSchema();
+		schema.flyway().migrate();
+		JdbcTemplate jdbc = schema.jdbcTemplate();
+		UUID customerId = UUID.fromString("01998e62-e700-7000-8000-000000000201");
+		UUID productId = UUID.fromString("01998e62-e700-7000-8000-000000000202");
+		UUID skuId = UUID.fromString("01998e62-e700-7000-8000-000000000203");
+		UUID secondSkuId = UUID.fromString("01998e62-e700-7000-8000-000000000204");
+		UUID thirdSkuId = UUID.fromString("01998e62-e700-7000-8000-000000000205");
+		UUID secondProductId = UUID.fromString("01998e62-e700-7000-8000-000000000206");
+		UUID definitionId = UUID.fromString("01998e62-e700-7000-8000-000000000207");
+		UUID secondDefinitionId = UUID.fromString("01998e62-e700-7000-8000-000000000208");
+		UUID valueId = UUID.fromString("01998e62-e700-7000-8000-000000000209");
+		UUID secondValueId = UUID.fromString("01998e62-e700-7000-8000-000000000210");
+		UUID otherDefinitionValueId = UUID.fromString("01998e62-e700-7000-8000-000000000211");
+		UUID priceListId = UUID.fromString("01998e62-e700-7000-8000-000000000212");
+
+		jdbc.update("""
+				INSERT INTO identity_user (id, email, password_hash, role, status, created_at, updated_at)
+				VALUES (?, 'catalog-customer@example.test', 'hash', 'CUSTOMER', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", customerId);
+		jdbc.update("""
+				INSERT INTO customer_profile (
+					user_id, company_name, nip, billing_street, billing_building_number,
+					billing_postal_code, billing_city, created_at, updated_at
+				) VALUES (?, 'Firma', '5260250995', 'Prosta', '1', '00-001', 'Warszawa', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", customerId);
+		insertCatalogProduct(jdbc, productId, "Produkt");
+		insertCatalogProduct(jdbc, secondProductId, "Drugi produkt");
+		insertCatalogSku(jdbc, skuId, productId, "SKU-1", "10.239", "23.00", 4, "PLN");
+		insertCatalogSku(jdbc, secondSkuId, productId, "SKU-2", "12.30", "8.125", 0, "PLN");
+		insertCatalogSku(jdbc, thirdSkuId, secondProductId, "SKU-3", "5.00", "5.00", 2, "PLN");
+		assertThat(jdbc.queryForObject(
+				"SELECT base_net_price FROM catalog_sku WHERE id = ?", java.math.BigDecimal.class, skuId
+		)).isEqualByComparingTo("10.24");
+		assertThat(jdbc.queryForObject(
+				"SELECT vat_rate FROM catalog_sku WHERE id = ?", java.math.BigDecimal.class, secondSkuId
+		)).isEqualByComparingTo("8.13");
+
+		assertThatThrownBy(() -> insertCatalogSku(jdbc, UUID.randomUUID(), productId, "SKU-1", "1.00", "23.00", 1, "PLN"))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> insertCatalogSku(jdbc, UUID.randomUUID(), productId, "SKU-NEG", "1.00", "23.00", -1, "PLN"))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> insertCatalogSku(jdbc, UUID.randomUUID(), productId, "SKU-EUR", "1.00", "23.00", 1, "EUR"))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> insertCatalogSku(jdbc, UUID.randomUUID(), productId, "SKU-VAT", "1.00", "100.01", 1, "PLN"))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> insertCatalogSku(jdbc, UUID.randomUUID(), productId, "SKU-PRICE", "-0.01", "23.00", 1, "PLN"))
+				.isInstanceOf(DataIntegrityViolationException.class);
+
+		jdbc.update("INSERT INTO catalog_attribute_definition (id, name, created_at, updated_at) VALUES (?, 'Kolor', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", definitionId);
+		jdbc.update("INSERT INTO catalog_attribute_definition (id, name, created_at, updated_at) VALUES (?, 'Rozmiar', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", secondDefinitionId);
+		jdbc.update("INSERT INTO catalog_attribute_value (id, definition_id, value, created_at, updated_at) VALUES (?, ?, 'Czerwony', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", valueId, definitionId);
+		jdbc.update("INSERT INTO catalog_attribute_value (id, definition_id, value, created_at, updated_at) VALUES (?, ?, 'Niebieski', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", secondValueId, definitionId);
+		jdbc.update("INSERT INTO catalog_attribute_value (id, definition_id, value, created_at, updated_at) VALUES (?, ?, 'M', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", otherDefinitionValueId, secondDefinitionId);
+		jdbc.update("INSERT INTO catalog_sku_attribute_assignment (sku_id, attribute_definition_id, attribute_value_id, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", skuId, definitionId, valueId);
+		assertThatThrownBy(() -> jdbc.update(
+				"INSERT INTO catalog_sku_attribute_assignment (sku_id, attribute_definition_id, attribute_value_id, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+				skuId, definitionId, secondValueId
+		)).isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update(
+				"INSERT INTO catalog_sku_attribute_assignment (sku_id, attribute_definition_id, attribute_value_id, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+				secondSkuId, definitionId, otherDefinitionValueId
+		)).isInstanceOf(DataIntegrityViolationException.class);
+
+		jdbc.update("INSERT INTO catalog_price_list (id, name, created_at, updated_at) VALUES (?, 'Cennik', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", priceListId);
+		jdbc.update("INSERT INTO catalog_price_list_item (price_list_id, sku_id, net_price, created_at, updated_at) VALUES (?, ?, 8.50, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", priceListId, skuId);
+		assertThatThrownBy(() -> jdbc.update(
+				"INSERT INTO catalog_price_list_item (price_list_id, sku_id, net_price, created_at, updated_at) VALUES (?, ?, 8.50, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+				priceListId, skuId
+		)).isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update(
+				"INSERT INTO catalog_price_list_item (price_list_id, sku_id, net_price, currency, created_at, updated_at) VALUES (?, ?, 8.50, 'EUR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+				priceListId, secondSkuId
+		)).isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update(
+				"INSERT INTO catalog_price_list_item (price_list_id, sku_id, net_price, created_at, updated_at) VALUES (?, ?, -1.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+				priceListId, thirdSkuId
+		)).isInstanceOf(DataIntegrityViolationException.class);
+
+		jdbc.update("INSERT INTO catalog_customer_price_list_assignment (customer_id, price_list_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", customerId, priceListId);
+		assertThatThrownBy(() -> jdbc.update(
+				"INSERT INTO catalog_customer_price_list_assignment (customer_id, price_list_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+				customerId, priceListId
+		)).isInstanceOf(DataIntegrityViolationException.class);
+		jdbc.update("INSERT INTO catalog_customer_specific_price (customer_id, sku_id, net_price, created_at, updated_at) VALUES (?, ?, 7.25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", customerId, skuId);
+		assertThatThrownBy(() -> jdbc.update(
+				"INSERT INTO catalog_customer_specific_price (customer_id, sku_id, net_price, created_at, updated_at) VALUES (?, ?, 7.25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+				customerId, skuId
+		)).isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	private static void insertCatalogProduct(JdbcTemplate jdbc, UUID id, String name) {
+		jdbc.update("""
+				INSERT INTO catalog_product (id, name, category, created_at, updated_at)
+				VALUES (?, ?, 'Category', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", id, name);
+	}
+
+	private static void insertCatalogSku(
+			JdbcTemplate jdbc, UUID id, UUID productId, String code,
+			String netPrice, String vatRate, int quantity, String currency
+	) {
+		jdbc.update("""
+				INSERT INTO catalog_sku (
+					id, product_id, code, base_net_price, vat_rate,
+					available_quantity, base_currency, created_at, updated_at
+				) VALUES (?, ?, ?, ?::NUMERIC, ?::NUMERIC, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", id, productId, code, netPrice, vatRate, quantity, currency);
+	}
+
+	@Test
 	void upgradesPopulatedV004DataWithoutDiscardingLegacyCustomerValues() {
 		MigrationSchema schema = migrations.newSchema();
 		schema.flywayTo(MigrationVersion.fromVersion("004")).migrate();
