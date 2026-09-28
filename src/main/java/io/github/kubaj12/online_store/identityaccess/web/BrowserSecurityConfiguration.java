@@ -20,6 +20,7 @@ import org.springframework.security.authentication.DefaultAuthenticationEventPub
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.header.HeaderWriterFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
@@ -89,6 +90,9 @@ public class BrowserSecurityConfiguration {
 		ProviderManager authenticationManager = new ProviderManager(authenticationProvider);
 		authenticationManager.setAuthenticationEventPublisher(new DefaultAuthenticationEventPublisher(applicationEventPublisher));
 		http.authenticationManager(authenticationManager);
+		// Keep the token server-side and accept Spring Security's standard form parameter
+		// and header transports. application.js supplies the header for unsafe HTMX requests.
+		http.csrf(csrf -> csrf.csrfTokenRepository(new HttpSessionCsrfTokenRepository()));
 		http.authorizeHttpRequests(authorize -> authorize.requestMatchers(browserPublicRequestMatcher).permitAll()
 				// Customer profile records and their administration forms are staff-only. Keep
 				// this boundary in the request filter chain so manipulated IDs are rejected

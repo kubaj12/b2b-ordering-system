@@ -2,6 +2,9 @@ package io.github.kubaj12.online_store.customers.application;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -41,7 +44,9 @@ class CustomerInvitationLifecycleIntegrationTests extends PostgreSqlServiceTestS
         assertThat(jdbc.queryForObject("SELECT status FROM identity_invitation WHERE id = ?",
                 String.class, first.id())).isEqualTo("ACCEPTED");
 
-        customers.update(customer, profile(REPLACEMENT_NIP));
+        CustomerProfileData edited = CustomerProfileData.of("Zmieniona firma", REPLACEMENT_NIP,
+                "Nowa", "9B", "12", "30-001", "Kraków", "PL", "+48 500 600 700");
+        customers.update(customer, edited);
         var second = invitations.inviteCustomer("second@example.test", employee, invitationId -> {
             store.requireNipAvailable(RELEASED_NIP, null, testClock().instant());
             store.addInvitationPayload(invitationId, profile(RELEASED_NIP), testClock().instant());
@@ -51,6 +56,47 @@ class CustomerInvitationLifecycleIntegrationTests extends PostgreSqlServiceTestS
                 String.class, second.id())).isEqualTo(RELEASED_NIP);
         assertThat(jdbc.queryForObject("SELECT nip FROM customer_profile WHERE user_id = ?",
                 String.class, customer)).isEqualTo(REPLACEMENT_NIP);
+        assertThat(jdbc.queryForMap("""
+                SELECT company_name, billing_street, billing_building_number, billing_unit_number,
+                       billing_postal_code, billing_city, phone FROM customer_profile WHERE user_id = ?
+                """,
+                customer)).containsAllEntriesOf(java.util.Map.of(
+                        "company_name", "Zmieniona firma", "billing_street", "Nowa",
+                        "billing_building_number", "9B", "billing_unit_number", "12",
+                        "billing_postal_code", "30-001", "billing_city", "Kraków", "phone", edited.phone().value()));
+    }
+
+    @Test
+    void competingCustomerActivationsCreateExactlyOneAccountAndProfile() throws Exception {
+        UUID employee = employee();
+        var invitation = invitations.inviteCustomer("race@example.test", employee, id -> {
+            store.requireNipAvailable(RELEASED_NIP, null, testClock().instant());
+            store.addInvitationPayload(id, profile(RELEASED_NIP), testClock().instant());
+        });
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> acceptAfterBarrier(invitation.token().value(), ready, start));
+            var second = executor.submit(() -> acceptAfterBarrier(invitation.token().value(), ready, start));
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            var outcomes = java.util.List.of(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
+            assertThat(outcomes.stream().filter(UUID.class::isInstance).count()).isOne();
+            assertThat(outcomes.stream().filter(InvitationException.class::isInstance).count()).isOne();
+        } finally {
+            start.countDown();
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM identity_user WHERE email = 'race@example.test'", Integer.class)).isOne();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM customer_profile WHERE nip = ?", Integer.class, RELEASED_NIP)).isOne();
+        assertThat(jdbc.queryForObject("SELECT status FROM identity_invitation WHERE id = ?", String.class, invitation.id())).isEqualTo("ACCEPTED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM customer_invitation_data WHERE invitation_id = ?", Integer.class, invitation.id())).isZero();
+    }
+
+    private Object acceptAfterBarrier(String token, CountDownLatch ready, CountDownLatch start) throws Exception {
+        ready.countDown();
+        if (!start.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("race start timed out");
+        try { return invitations.accept(token, PASSWORD); }
+        catch (InvitationException exception) { return exception; }
     }
 
     @Test

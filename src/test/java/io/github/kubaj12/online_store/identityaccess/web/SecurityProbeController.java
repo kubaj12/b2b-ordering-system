@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -44,7 +46,12 @@ class SecurityProbeController {
 		return service.call();
 	}
 
-	@PostMapping("/test/security/command")
+	@RequestMapping(path = "/test/security/command", method = {
+			RequestMethod.POST,
+			RequestMethod.PUT,
+			RequestMethod.PATCH,
+			RequestMethod.DELETE
+	})
 	@ResponseBody
 	String authenticatedCommand() {
 		return service.call();

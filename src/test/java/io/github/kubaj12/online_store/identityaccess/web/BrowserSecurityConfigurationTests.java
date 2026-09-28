@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -22,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
@@ -137,6 +140,23 @@ class BrowserSecurityConfigurationTests {
 				.andExpect(status().isOk());
 
 		assertThat(service.calls()).isEqualTo(2);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"POST", "PUT", "PATCH", "DELETE"})
+	void requiresTheCsrfHeaderForEveryHtmxStateChangingMethod(String method) throws Exception {
+		var httpMethod = HttpMethod.valueOf(method);
+		mockMvc.perform(request(httpMethod, "/test/security/command")
+					.with(SecurityTestUsers.customer())
+					.header(HtmxHeaders.REQUEST, "true"))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(request(httpMethod, "/test/security/command")
+					.with(SecurityTestUsers.customer())
+					.with(csrf().asHeader())
+					.header(HtmxHeaders.REQUEST, "true"))
+				.andExpect(status().isOk());
+
+		assertThat(service.calls()).isOne();
 	}
 
 	@Test

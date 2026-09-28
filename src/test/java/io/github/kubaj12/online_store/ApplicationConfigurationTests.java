@@ -61,6 +61,12 @@ class ApplicationConfigurationTests {
 						LoginThrottleProperties::blockDuration, LoginThrottleProperties::retention)
 				.containsExactly(5, java.time.Duration.ofMinutes(15), java.time.Duration.ofMinutes(15), java.time.Duration.ofHours(24));
 			assertThat(context.getEnvironment().getProperty("server.forward-headers-strategy")).isEqualTo("none");
+			assertThat(context.getEnvironment().getProperty("server.servlet.session.cookie.name"))
+					.isEqualTo("B2BSESSION");
+			assertThat(context.getEnvironment().getProperty("server.servlet.session.cookie.http-only", Boolean.class))
+					.isTrue();
+			assertThat(context.getEnvironment().getProperty("server.servlet.session.cookie.same-site"))
+					.isEqualTo("lax");
 		});
 	}
 

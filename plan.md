@@ -63,7 +63,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 - [x] Accept a valid customer invitation in one transaction: revalidate uniqueness, create the `CUSTOMER` user, copy pending data to its one-to-one profile, activate the account, and consume the invitation. A failed transaction must leave no partial account/profile.
 - [x] Implement employee/admin resend and customer block/unblock actions through the Phase 2 services; retain the company/billing payload in the replacement invitation and preserve profiles and historical references when accounts are blocked. Record customer invitation and account-status audit events.
 - [x] Enforce object-level rules so a customer cannot obtain any customer profile (including their own), another user's identifier, or administrative form by URL/request manipulation.
-- [ ] Verify activation races, duplicate email/NIP handling, expired/revoked/accepted links, payload copying, Poland-only validation, profile edit persistence, block/session behavior, role matrix, and IDOR attempts with PostgreSQL and MVC tests.
+- [x] Verify activation races, duplicate email/NIP handling, expired/revoked/accepted links, payload copying, Poland-only validation, profile edit persistence, block/session behavior, role matrix, and IDOR attempts with PostgreSQL and MVC tests.
 
 **Completion outcome:** Staff can invite and maintain Polish business customers end to end, acceptance creates exactly one active customer/profile pair, and company/billing data remains staff-only.
 
