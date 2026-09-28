@@ -3,9 +3,20 @@ package io.github.kubaj12.online_store.catalogpricing.application;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 
 /** Persistence boundary for catalog maintenance use cases. */
 public interface CatalogStore {
+    record ProductRow(UUID id, String name, String category, boolean active, int skuCount) { }
+    record VariantValue(UUID definitionId, String definitionName, UUID valueId, String value) { }
+    record SkuRow(UUID id, String code, BigDecimal baseNetPrice, BigDecimal vatRate, boolean active,
+            List<VariantValue> variants) { }
+    record AttributeValueRow(UUID id, String value) { }
+    record AttributeDefinitionRow(UUID id, String name, List<AttributeValueRow> values) { }
+    record ProductDetail(UUID id, String name, String description, String category, boolean active,
+            List<SkuRow> skus, List<AttributeDefinitionRow> attributes) { }
+    List<ProductRow> products();
+    ProductDetail product(UUID id);
     record Availability(boolean productActive, boolean skuActive) { }
     record PriceVat(BigDecimal price, BigDecimal vat) { }
     Availability availability(UUID skuId);

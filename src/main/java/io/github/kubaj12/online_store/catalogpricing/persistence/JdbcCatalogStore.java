@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,31 @@ import io.github.kubaj12.online_store.catalogpricing.application.CatalogStore;
 public class JdbcCatalogStore implements CatalogStore {
     private final JdbcTemplate jdbc;
     public JdbcCatalogStore(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    @Override public List<ProductRow> products() {
+        return jdbc.query("""
+                SELECT p.id,p.name,p.category,p.is_active,count(s.id) sku_count FROM catalog_product p
+                LEFT JOIN catalog_sku s ON s.product_id=p.id GROUP BY p.id ORDER BY p.name,p.id""",
+                (rs,n) -> new ProductRow(rs.getObject("id", UUID.class),rs.getString("name"),rs.getString("category"),rs.getBoolean("is_active"),rs.getInt("sku_count")));
+    }
+    @Override public ProductDetail product(UUID id) {
+        ProductDetail base = jdbc.query("SELECT id,name,description,category,is_active FROM catalog_product WHERE id=?",
+                rs -> rs.next() ? new ProductDetail(rs.getObject("id",UUID.class),rs.getString("name"),rs.getString("description"),rs.getString("category"),rs.getBoolean("is_active"),new java.util.ArrayList<>(),new java.util.ArrayList<>()) : null,id);
+        if (base == null) throw new CatalogException("product not found");
+        var skus = jdbc.query("SELECT id,code,base_net_price,vat_rate,is_active FROM catalog_sku WHERE product_id=? ORDER BY code",(rs,n) -> {
+            UUID sku=rs.getObject("id",UUID.class);
+            var variants=jdbc.query("""
+                    SELECT d.id definition_id,d.name definition_name,v.id value_id,v.value FROM catalog_sku_attribute_assignment a
+                    JOIN catalog_attribute_definition d ON d.id=a.attribute_definition_id JOIN catalog_attribute_value v ON v.id=a.attribute_value_id
+                    WHERE a.sku_id=? ORDER BY d.name""",(ar,an)->new VariantValue(ar.getObject(1,UUID.class),ar.getString(2),ar.getObject(3,UUID.class),ar.getString(4)),sku);
+            return new SkuRow(sku,rs.getString("code"),rs.getBigDecimal("base_net_price"),rs.getBigDecimal("vat_rate"),rs.getBoolean("is_active"),variants);
+        },id);
+        var definitions=jdbc.query("SELECT id,name FROM catalog_attribute_definition ORDER BY name",(rs,n)-> {
+            UUID definition=rs.getObject("id",UUID.class);
+            var values=jdbc.query("SELECT id,value FROM catalog_attribute_value WHERE definition_id=? ORDER BY value",(v,vn)->new AttributeValueRow(v.getObject("id",UUID.class),v.getString("value")),definition);
+            return new AttributeDefinitionRow(definition,rs.getString("name"),values);
+        });
+        return new ProductDetail(base.id(),base.name(),base.description(),base.category(),base.active(),skus,definitions);
+    }
     @Override public Availability availability(UUID skuId) {
         return jdbc.query("""
             SELECT p.is_active, s.is_active FROM catalog_sku s

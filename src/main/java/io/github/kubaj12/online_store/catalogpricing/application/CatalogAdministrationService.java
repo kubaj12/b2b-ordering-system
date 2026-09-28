@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import io.github.kubaj12.online_store.shared.auditing.AuditActor;
@@ -17,6 +18,15 @@ public class CatalogAdministrationService {
     private final AuditEventRecorder audit;
     public CatalogAdministrationService(CatalogStore store, Clock clock, AuditEventRecorder audit) {
         this.store = store; this.clock = clock; this.audit = audit;
+    }
+    public record ReferenceAmounts(BigDecimal net, BigDecimal vat, BigDecimal gross) { }
+    @Transactional(readOnly = true) public List<CatalogStore.ProductRow> products() { return store.products(); }
+    @Transactional(readOnly = true) public CatalogStore.ProductDetail product(UUID id) { return store.product(requiredId(id)); }
+    public static ReferenceAmounts referenceAmounts(BigDecimal net, BigDecimal vatRate) {
+        if (net == null || vatRate == null) throw new CatalogException("price and VAT required");
+        BigDecimal roundedNet=net.setScale(2,RoundingMode.HALF_UP);
+        BigDecimal tax=roundedNet.multiply(vatRate).divide(new BigDecimal("100"),2,RoundingMode.HALF_UP);
+        return new ReferenceAmounts(roundedNet,tax,roundedNet.add(tax));
     }
 
     @Transactional public UUID createProduct(String name, String description, String category) {
