@@ -3,8 +3,8 @@ package io.github.kubaj12.online_store.catalogpricing.application;
 import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.List;
-import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import io.github.kubaj12.online_store.identityaccess.application.AccountPrincipal;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -25,30 +25,34 @@ public class EffectivePriceResolver {
     @Transactional(readOnly = true)
     public EffectivePrice resolve(UUID skuId) {
         if (skuId == null) throw new CatalogException("SKU is required");
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal() instanceof AccountPrincipal principal)
-                || !"CUSTOMER".equals(principal.role())) {
-            throw new AccessDeniedException("An authenticated customer is required to resolve customer pricing");
-        }
-        UUID customerId = principal.accountId();
+        UUID customerId = authenticatedCustomerId();
         PriceListStore.PriceCandidates candidates = store.priceCandidates(customerId, skuId);
         return effective(candidates);
     }
 
     @Transactional(readOnly = true)
     public Map<UUID, EffectivePrice> resolveAll(List<UUID> skuIds) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal() instanceof AccountPrincipal principal)
-                || !"CUSTOMER".equals(principal.role())) {
-            throw new AccessDeniedException("An authenticated customer is required to resolve customer pricing");
-        }
         if (skuIds == null || skuIds.stream().anyMatch(java.util.Objects::isNull)) throw new CatalogException("SKUs are required");
-        var candidates=store.priceCandidates(principal.accountId(),skuIds);
+        UUID customerId = authenticatedCustomerId();
+        var candidates=store.priceCandidates(customerId,skuIds);
         var result=new LinkedHashMap<UUID,EffectivePrice>();
         for(UUID id:skuIds) result.put(id,effective(candidates.get(id)));
         return Map.copyOf(result);
+    }
+
+    /**
+     * Customer-facing pricing deliberately has no customer/list/override ID parameter.
+     * The only customer scope is the active customer identity established by Spring Security.
+     */
+    private static UUID authenticatedCustomerId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof AccountPrincipal principal)
+                || !"CUSTOMER".equals(principal.role()) || !principal.isEnabled()
+                || principal.accountId() == null) {
+            throw new AccessDeniedException("An active authenticated customer is required to resolve customer pricing");
+        }
+        return principal.accountId();
     }
 
     private static EffectivePrice effective(PriceListStore.PriceCandidates candidates) {
