@@ -120,7 +120,24 @@ class AuditValueTypesTests {
 				.filter(method -> Modifier.isPublic(method.getModifiers()))
 				.filter(method -> Modifier.isStatic(method.getModifiers()))
 				.map(method -> method.getName()))
-				.containsExactlyInAnyOrder("enumeration", "decimal", "integer", "flag");
+				.containsExactlyInAnyOrder("enumeration", "decimal", "integer", "flag", "uuid");
+	}
+
+	@Test
+	void encodesUuidMetadataAndAppliesFieldNameRestrictions() {
+		var reference = AuditField.uuid("priceListId");
+		var next = UUID.fromString("ba8a3757-e759-4f7d-afcb-029703732b37");
+		var eventType = new AuditEventType<>("catalog.price-list.changed", USER_TARGET, reference);
+		var event = eventType.event(TARGET_ID, ACTOR, reference.change(null, next));
+
+		assertThat(event.changeMetadata().get("priceListId").get("from")).isNull();
+		assertThat(event.changeMetadata().get("priceListId").get("to")).isEqualTo(next.toString());
+		assertThatThrownBy(() -> AuditField.uuid("resetToken"))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("sensitive");
+		assertThatThrownBy(() -> reference.change(null, new UUID(0, 0)))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("nil");
 	}
 
 	@Test

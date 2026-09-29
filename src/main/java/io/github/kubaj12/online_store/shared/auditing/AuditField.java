@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -105,6 +106,15 @@ public final class AuditField<T> {
 
 	public static AuditField<Boolean> flag(String name) {
 		return new AuditField<>(name, Boolean.class, value -> { }, String::valueOf);
+	}
+
+	/** Internal identifier metadata; UUIDs cannot contain credentials or arbitrary text. */
+	public static AuditField<UUID> uuid(String name) {
+		return new AuditField<>(name, UUID.class, value -> {
+			if (value.equals(new UUID(0, 0))) {
+				throw new IllegalArgumentException("audit UUID value must not be nil");
+			}
+		}, UUID::toString);
 	}
 
 	public AuditFieldChange<T> change(T from, T to) {
