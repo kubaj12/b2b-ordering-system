@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
 
 public interface PriceListStore {
     record Sku(UUID id, String code, String product, BigDecimal basePrice) { }
@@ -24,6 +25,7 @@ public interface PriceListStore {
     BigDecimal listPrice(UUID listId, UUID skuId);
     BigDecimal customerPrice(UUID customerId, UUID skuId);
     PriceCandidates priceCandidates(UUID customerId, UUID skuId);
+    Map<UUID, PriceCandidates> priceCandidates(UUID customerId, List<UUID> skuIds);
     void lockSku(UUID skuId);
     void lockCustomer(UUID customerId);
     void createList(UUID id, String name, Instant now);

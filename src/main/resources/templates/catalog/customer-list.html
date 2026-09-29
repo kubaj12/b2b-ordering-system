@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/application :: layout('Katalog produktów', 'customer-catalog', ~{::content})}"><body>
+<section th:fragment="content" class="vstack gap-4">
+    <div>
+        <h1 class="h2 mb-1">Katalog produktów</h1>
+        <p class="text-body-secondary mb-0">Wyszukuj produkty i sprawdzaj warianty, ceny oraz bieżącą dostępność.</p>
+    </div>
+
+    <form class="row g-3 align-items-end bg-white border rounded p-3" method="get" th:action="@{/catalog}">
+        <div class="col-12 col-md-6">
+            <label class="form-label" for="catalog-search">Nazwa produktu lub kod SKU</label>
+            <input class="form-control" id="catalog-search" name="q" type="search" maxlength="120"
+                   th:value="${q}" placeholder="Np. koszula albo SKU-123">
+        </div>
+        <div class="col-12 col-md-4">
+            <label class="form-label" for="catalog-category">Kategoria</label>
+            <select class="form-select" id="catalog-category" name="category">
+                <option value="">Wszystkie kategorie</option>
+                <option th:each="category : ${categories}" th:value="${category}" th:text="${category}"
+                        th:selected="${category == selectedCategory}">Kategoria</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2 d-grid"><button class="btn btn-primary" type="submit">Szukaj</button></div>
+    </form>
+
+    <p class="small text-body-secondary mb-0" th:text="|Znaleziono ${catalogPage.totalElements} produktów|">Znaleziono produkty</p>
+
+    <div class="vstack gap-3" th:if="${!catalogPage.products.isEmpty()}">
+        <article class="card shadow-sm" th:each="entry : ${catalogPage.products}">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                    <h2 class="h4 mb-0" th:text="${entry.product.name}">Nazwa produktu</h2>
+                    <span class="badge text-bg-light border align-self-start" th:text="${entry.product.category}">Kategoria</span>
+                </div>
+                <p class="text-body-secondary" th:if="${!#strings.isEmpty(entry.product.description)}"
+                   th:text="${entry.product.description}">Opis produktu</p>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th scope="col">Wariant</th><th scope="col">SKU</th><th scope="col">Cena netto</th><th scope="col">VAT</th><th scope="col">Cena brutto</th><th scope="col">Dostępność</th><th scope="col"><span class="visually-hidden">Akcja</span></th></tr></thead>
+                        <tbody>
+                        <tr th:each="variant : ${entry.variants}">
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img th:if="${variant.variant.imagePresent}" class="rounded border object-fit-contain bg-white" width="64" height="64"
+                                         th:src="@{/catalog/images/{id}(id=${variant.variant.id},thumbnail=true)}" alt="Miniatura produktu">
+                                    <span th:unless="${variant.variant.imagePresent}" class="border rounded bg-body-tertiary d-inline-flex align-items-center justify-content-center text-body-secondary" style="width:64px;height:64px" aria-hidden="true">—</span>
+                                    <span th:if="${variant.variant.attributes.isEmpty()}" class="text-body-secondary">Wariant podstawowy</span>
+                                    <span th:unless="${variant.variant.attributes.isEmpty()}" class="d-flex flex-wrap gap-1">
+                                        <span class="badge text-bg-light border" th:each="attribute : ${variant.variant.attributes}" th:text="|${attribute.definitionName}: ${attribute.value}|">Rozmiar: M</span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td th:text="${variant.variant.code}">SKU-123</td>
+                            <td th:text="|${#numbers.formatDecimal(variant.price.unitNetPrice,1,2)} zł|">0,00 zł</td>
+                            <td th:text="|${#numbers.formatDecimal(variant.price.vatRate,1,2)}% (${#numbers.formatDecimal(variant.amounts.vat,1,2)} zł)|">23%</td>
+                            <td th:text="|${#numbers.formatDecimal(variant.amounts.gross,1,2)} zł|">0,00 zł</td>
+                            <td>
+                                <span class="badge text-bg-success" th:if="${variant.variant.quantity > 0}" th:text="|Dostępny · ${variant.variant.quantity} szt.|">Dostępny · 1 szt.</span>
+                                <span class="badge text-bg-secondary" th:if="${variant.variant.quantity == 0}">Chwilowo niedostępny · 0 szt.</span>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <button th:if="${variant.variant.quantity > 0}" class="btn btn-sm btn-outline-secondary" type="button" disabled aria-disabled="true">Koszyk będzie dostępny wkrótce</button>
+                                <button th:if="${variant.variant.quantity == 0}" class="btn btn-sm btn-outline-secondary" type="button" disabled aria-disabled="true">Brak w magazynie</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </article>
+    </div>
+    <div class="alert alert-info mb-0" th:if="${catalogPage.products.isEmpty()}">Nie znaleziono aktywnych produktów dla podanych kryteriów.</div>
+    <nav th:replace="~{fragments/pagination :: pagination(${catalogPage}, '/catalog', ${retainedParameters})}"></nav>
+</section>
+</body></html>
