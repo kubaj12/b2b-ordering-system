@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import io.github.kubaj12.online_store.shared.auditing.AuditActor;
 import io.github.kubaj12.online_store.shared.auditing.AuditEventRecorder;
+import io.github.kubaj12.online_store.shared.money.DecimalPriceCalculator;
 
 @Service
 public class CatalogAdministrationService {
@@ -139,9 +140,8 @@ public class CatalogAdministrationService {
     @Transactional(readOnly = true) public CatalogStore.ProductDetail product(UUID id) { return store.product(requiredId(id)); }
     public static ReferenceAmounts referenceAmounts(BigDecimal net, BigDecimal vatRate) {
         if (net == null || vatRate == null) throw new CatalogException("price and VAT required");
-        BigDecimal roundedNet=net.setScale(2,RoundingMode.HALF_UP);
-        BigDecimal tax=roundedNet.multiply(vatRate).divide(new BigDecimal("100"),2,RoundingMode.HALF_UP);
-        return new ReferenceAmounts(roundedNet,tax,roundedNet.add(tax));
+        var amounts = DecimalPriceCalculator.line(net, vatRate, 1);
+        return new ReferenceAmounts(amounts.net(), amounts.vat(), amounts.gross());
     }
 
     @Transactional public UUID createProduct(String name, String description, String category) {

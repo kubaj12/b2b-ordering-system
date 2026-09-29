@@ -31,6 +31,24 @@ public class JdbcPriceListStore implements PriceListStore {
     @Override public boolean priceListExists(UUID id) { Boolean exists=jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM catalog_price_list WHERE id=?)",Boolean.class,id);return Boolean.TRUE.equals(exists); }
     @Override public BigDecimal listPrice(UUID list,UUID sku) { return jdbc.query("SELECT net_price FROM catalog_price_list_item WHERE price_list_id=? AND sku_id=?",r->r.next()?r.getBigDecimal(1):null,list,sku); }
     @Override public BigDecimal customerPrice(UUID customer,UUID sku) { return jdbc.query("SELECT net_price FROM catalog_customer_specific_price WHERE customer_id=? AND sku_id=?",r->r.next()?r.getBigDecimal(1):null,customer,sku); }
+    @Override public PriceCandidates priceCandidates(UUID customer, UUID sku) {
+        return jdbc.query("""
+                SELECT cp.net_price AS customer_price, lp.net_price AS list_price,
+                       s.base_net_price, s.vat_rate
+                FROM catalog_sku s
+                JOIN customer_profile c ON c.user_id=?
+                LEFT JOIN catalog_customer_specific_price cp
+                  ON cp.customer_id=? AND cp.sku_id=s.id
+                LEFT JOIN catalog_customer_price_list_assignment a ON a.customer_id=?
+                LEFT JOIN catalog_price_list_item lp
+                  ON lp.price_list_id=a.price_list_id AND lp.sku_id=s.id
+                WHERE s.id=?
+                """, r -> {
+            if (!r.next()) return null;
+            return new PriceCandidates(r.getBigDecimal("customer_price"), r.getBigDecimal("list_price"),
+                    r.getBigDecimal("base_net_price"), r.getBigDecimal("vat_rate"));
+        }, customer, customer, customer, sku);
+    }
     @Override public void lockSku(UUID sku) {
         List<UUID> rows=jdbc.query("SELECT id FROM catalog_sku WHERE id=? FOR UPDATE",(r,n)->r.getObject(1,UUID.class),sku);
         if(rows.isEmpty())throw new CatalogException("SKU not found");

@@ -10,6 +10,8 @@ public interface PriceListStore {
     record Customer(UUID id, String email, String company, UUID assignedListId, String assignedListName) { }
     record Item(UUID skuId, String code, String product, BigDecimal price) { }
     record CustomerPrice(UUID customerId, UUID skuId, String code, String product, BigDecimal price) { }
+    record PriceCandidates(BigDecimal customerPrice, BigDecimal assignedListPrice,
+            BigDecimal basePrice, BigDecimal vatRate) { }
     record PriceList(UUID id, String name, int itemCount, List<Item> items) { }
     record CustomerPricePage(List<CustomerPrice> rows, int page, int totalPages) { }
     List<PriceList> lists();
@@ -21,6 +23,7 @@ public interface PriceListStore {
     boolean priceListExists(UUID id);
     BigDecimal listPrice(UUID listId, UUID skuId);
     BigDecimal customerPrice(UUID customerId, UUID skuId);
+    PriceCandidates priceCandidates(UUID customerId, UUID skuId);
     void lockSku(UUID skuId);
     void lockCustomer(UUID customerId);
     void createList(UUID id, String name, Instant now);
