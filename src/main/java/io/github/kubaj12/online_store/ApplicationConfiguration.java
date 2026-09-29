@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
@@ -13,8 +14,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import io.github.kubaj12.online_store.identityaccess.domain.NormalizedEmail;
 import io.github.kubaj12.online_store.identityaccess.domain.PasswordPolicy;
 import io.github.kubaj12.online_store.identityaccess.domain.LoginThrottlePolicy;
+import io.github.kubaj12.online_store.catalogpricing.application.ImageStorage;
+import io.github.kubaj12.online_store.catalogpricing.persistence.FileSystemImageStorage;
 
 @Configuration(proxyBeanMethods = false)
+@EnableScheduling
 @EnableConfigurationProperties({
 		ApplicationMailProperties.class,
 		ApplicationWebProperties.class,
@@ -27,6 +31,11 @@ class ApplicationConfiguration {
 	@Bean
 	PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder(BCryptPasswordEncoder.BCryptVersion.$2B, 12);
+	}
+
+	@Bean
+	ImageStorage imageStorage(ImageStorageProperties properties) {
+		return new FileSystemImageStorage(properties.root());
 	}
 
 	@Bean

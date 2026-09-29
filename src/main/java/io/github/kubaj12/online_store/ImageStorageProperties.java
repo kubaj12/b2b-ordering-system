@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 @Validated
 @ConfigurationProperties("app.image-storage")
-record ImageStorageProperties(@NotNull Path root) {
+public record ImageStorageProperties(@NotNull Path root) {
 
 	@AssertTrue(message = "app.image-storage.root must not be empty")
 	public boolean isRootConfigured() {

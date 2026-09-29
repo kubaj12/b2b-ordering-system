@@ -11,11 +11,47 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import io.github.kubaj12.online_store.catalogpricing.application.CatalogException;
 import io.github.kubaj12.online_store.catalogpricing.application.CatalogStore;
+import io.github.kubaj12.online_store.catalogpricing.application.ImageReference;
 
 @Repository
 public class JdbcCatalogStore implements CatalogStore {
     private final JdbcTemplate jdbc;
     public JdbcCatalogStore(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    @Override public StoredImage image(UUID skuId) {
+        return jdbc.query("SELECT storage_key,content_type,byte_size,width,height FROM catalog_sku_image_metadata WHERE sku_id=?", rs -> rs.next() ? new StoredImage(new ImageReference(rs.getString(1)),rs.getString(2),rs.getLong(3),(Integer)rs.getObject(4),(Integer)rs.getObject(5)) : null,skuId);
+    }
+    @Override @Transactional public StoredImage replaceImage(UUID skuId, ImageReference reference, String contentType, long size, int width, int height, Instant now) {
+        jdbc.query("SELECT id FROM catalog_sku WHERE id=? FOR UPDATE", rs -> { if (!rs.next()) throw new CatalogException("SKU not found"); },skuId);
+        StoredImage previous=image(skuId);
+        enqueueImageCleanup(previous,now);
+        jdbc.update("INSERT INTO catalog_sku_image_metadata(sku_id,storage_key,content_type,byte_size,width,height,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(sku_id) DO UPDATE SET storage_key=EXCLUDED.storage_key,content_type=EXCLUDED.content_type,byte_size=EXCLUDED.byte_size,width=EXCLUDED.width,height=EXCLUDED.height,updated_at=EXCLUDED.updated_at",skuId,reference.value(),contentType,size,width,height,utc(now),utc(now));
+        return previous;
+    }
+    @Override @Transactional public StoredImage removeImage(UUID skuId, Instant now) {
+        jdbc.query("SELECT id FROM catalog_sku WHERE id=? FOR UPDATE", rs -> { if (!rs.next()) throw new CatalogException("SKU not found"); },skuId);
+        StoredImage previous=image(skuId);
+        if(previous!=null) {
+            enqueueImageCleanup(previous,now);
+            jdbc.update("DELETE FROM catalog_sku_image_metadata WHERE sku_id=? AND storage_key=?",skuId,previous.reference().value());
+        }
+        return previous;
+    }
+    @Override public List<ImageReference> pendingImageCleanup(int limit) {
+        return jdbc.query("SELECT storage_key FROM catalog_image_cleanup ORDER BY last_attempt_at NULLS FIRST,created_at,storage_key LIMIT ?",(rs,n)->new ImageReference(rs.getString(1)),limit);
+    }
+    @Override @Transactional(propagation=org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void enqueueImageCleanup(ImageReference reference, Instant now) {
+        jdbc.update("INSERT INTO catalog_image_cleanup(storage_key,created_at) VALUES(?,?) ON CONFLICT(storage_key) DO NOTHING",reference.value(),utc(now));
+    }
+    @Override public void markImageCleanupAttempt(ImageReference reference, Instant attemptedAt) {
+        jdbc.update("UPDATE catalog_image_cleanup SET attempts=attempts+1,last_attempt_at=? WHERE storage_key=?",utc(attemptedAt),reference.value());
+    }
+    @Override public void completeImageCleanup(ImageReference reference) {
+        jdbc.update("DELETE FROM catalog_image_cleanup WHERE storage_key=?",reference.value());
+    }
+    private void enqueueImageCleanup(StoredImage image, Instant now) {
+        if(image!=null) jdbc.update("INSERT INTO catalog_image_cleanup(storage_key,created_at) VALUES(?,?) ON CONFLICT(storage_key) DO NOTHING",image.reference().value(),utc(now));
+    }
     @Override public List<ProductRow> products() {
         return jdbc.query("""
                 SELECT p.id,p.name,p.category,p.is_active,count(s.id) sku_count FROM catalog_product p
@@ -26,13 +62,13 @@ public class JdbcCatalogStore implements CatalogStore {
         ProductDetail base = jdbc.query("SELECT id,name,description,category,is_active FROM catalog_product WHERE id=?",
                 rs -> rs.next() ? new ProductDetail(rs.getObject("id",UUID.class),rs.getString("name"),rs.getString("description"),rs.getString("category"),rs.getBoolean("is_active"),new java.util.ArrayList<>(),new java.util.ArrayList<>()) : null,id);
         if (base == null) throw new CatalogException("product not found");
-        var skus = jdbc.query("SELECT id,code,base_net_price,vat_rate,is_active FROM catalog_sku WHERE product_id=? ORDER BY code",(rs,n) -> {
+        var skus = jdbc.query("SELECT s.id,s.code,s.base_net_price,s.vat_rate,s.is_active,(i.sku_id IS NOT NULL) image_present FROM catalog_sku s LEFT JOIN catalog_sku_image_metadata i ON i.sku_id=s.id WHERE s.product_id=? ORDER BY s.code",(rs,n) -> {
             UUID sku=rs.getObject("id",UUID.class);
             var variants=jdbc.query("""
                     SELECT d.id definition_id,d.name definition_name,v.id value_id,v.value FROM catalog_sku_attribute_assignment a
                     JOIN catalog_attribute_definition d ON d.id=a.attribute_definition_id JOIN catalog_attribute_value v ON v.id=a.attribute_value_id
                     WHERE a.sku_id=? ORDER BY d.name""",(ar,an)->new VariantValue(ar.getObject(1,UUID.class),ar.getString(2),ar.getObject(3,UUID.class),ar.getString(4)),sku);
-            return new SkuRow(sku,rs.getString("code"),rs.getBigDecimal("base_net_price"),rs.getBigDecimal("vat_rate"),rs.getBoolean("is_active"),variants);
+            return new SkuRow(sku,rs.getString("code"),rs.getBigDecimal("base_net_price"),rs.getBigDecimal("vat_rate"),rs.getBoolean("is_active"),rs.getBoolean("image_present"),variants);
         },id);
         var definitions=jdbc.query("SELECT id,name FROM catalog_attribute_definition ORDER BY name",(rs,n)-> {
             UUID definition=rs.getObject("id",UUID.class);

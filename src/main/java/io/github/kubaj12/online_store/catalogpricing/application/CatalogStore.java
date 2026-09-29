@@ -10,7 +10,7 @@ public interface CatalogStore {
     record ProductRow(UUID id, String name, String category, boolean active, int skuCount) { }
     record VariantValue(UUID definitionId, String definitionName, UUID valueId, String value) { }
     record SkuRow(UUID id, String code, BigDecimal baseNetPrice, BigDecimal vatRate, boolean active,
-            List<VariantValue> variants) { }
+            boolean imagePresent, List<VariantValue> variants) { }
     record AttributeValueRow(UUID id, String value) { }
     record AttributeDefinitionRow(UUID id, String name, List<AttributeValueRow> values) { }
     record ProductDetail(UUID id, String name, String description, String category, boolean active,
@@ -19,6 +19,14 @@ public interface CatalogStore {
     ProductDetail product(UUID id);
     record Availability(boolean productActive, boolean skuActive) { }
     record PriceVat(BigDecimal price, BigDecimal vat) { }
+    record StoredImage(ImageReference reference, String contentType, long byteSize, Integer width, Integer height) { }
+    StoredImage image(UUID skuId);
+    StoredImage replaceImage(UUID skuId, ImageReference reference, String contentType, long byteSize, int width, int height, Instant now);
+    StoredImage removeImage(UUID skuId, Instant now);
+    List<ImageReference> pendingImageCleanup(int limit);
+    void enqueueImageCleanup(ImageReference reference, Instant now);
+    void markImageCleanupAttempt(ImageReference reference, Instant attemptedAt);
+    void completeImageCleanup(ImageReference reference);
     Availability availability(UUID skuId);
     void createProduct(UUID id, String name, String description, String category, Instant now);
     void updateProduct(UUID id, String name, String description, String category, Instant now);
