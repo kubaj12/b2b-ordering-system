@@ -63,8 +63,8 @@ public class JdbcCustomerCatalogStore implements CustomerCatalogStore {
                     JOIN catalog_attribute_definition d ON d.id=a.attribute_definition_id
                     JOIN catalog_attribute_value v ON v.id=a.attribute_value_id
                     WHERE a.sku_id IN (%s) ORDER BY d.name
-                    """.formatted(skuMarks),rs->{while(rs.next()) attributes.computeIfAbsent(rs.getObject(1,UUID.class),ignored->new ArrayList<>())
-                    .add(new CatalogStore.VariantValue(rs.getObject(2,UUID.class),rs.getString(3),rs.getObject(4,UUID.class),rs.getString(5)));},skuIds.toArray());
+                    """.formatted(skuMarks),(org.springframework.jdbc.core.ResultSetExtractor<Void>) rs->{while(rs.next()) attributes.computeIfAbsent(rs.getObject(1,UUID.class),ignored->new ArrayList<>())
+                    .add(new CatalogStore.VariantValue(rs.getObject(2,UUID.class),rs.getString(3),rs.getObject(4,UUID.class),rs.getString(5))); return null;},skuIds.toArray());
         }
         Map<UUID,List<Variant>> byProduct=new LinkedHashMap<>();
         for(var row:variantRows) byProduct.computeIfAbsent(row.productId(),ignored->new ArrayList<>())

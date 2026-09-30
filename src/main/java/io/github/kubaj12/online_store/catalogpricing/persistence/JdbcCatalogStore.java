@@ -21,14 +21,16 @@ public class JdbcCatalogStore implements CatalogStore {
         return jdbc.query("SELECT storage_key,content_type,byte_size,width,height FROM catalog_sku_image_metadata WHERE sku_id=?", rs -> rs.next() ? new StoredImage(new ImageReference(rs.getString(1)),rs.getString(2),rs.getLong(3),(Integer)rs.getObject(4),(Integer)rs.getObject(5)) : null,skuId);
     }
     @Override @Transactional public StoredImage replaceImage(UUID skuId, ImageReference reference, String contentType, long size, int width, int height, Instant now) {
-        jdbc.query("SELECT id FROM catalog_sku WHERE id=? FOR UPDATE", rs -> { if (!rs.next()) throw new CatalogException("SKU not found"); },skuId);
+        Boolean exists=jdbc.query("SELECT id FROM catalog_sku WHERE id=? FOR UPDATE", (org.springframework.jdbc.core.ResultSetExtractor<Boolean>) rs -> rs.next(),skuId);
+        if (!Boolean.TRUE.equals(exists)) throw new CatalogException("SKU not found");
         StoredImage previous=image(skuId);
         enqueueImageCleanup(previous,now);
         jdbc.update("INSERT INTO catalog_sku_image_metadata(sku_id,storage_key,content_type,byte_size,width,height,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(sku_id) DO UPDATE SET storage_key=EXCLUDED.storage_key,content_type=EXCLUDED.content_type,byte_size=EXCLUDED.byte_size,width=EXCLUDED.width,height=EXCLUDED.height,updated_at=EXCLUDED.updated_at",skuId,reference.value(),contentType,size,width,height,utc(now),utc(now));
         return previous;
     }
     @Override @Transactional public StoredImage removeImage(UUID skuId, Instant now) {
-        jdbc.query("SELECT id FROM catalog_sku WHERE id=? FOR UPDATE", rs -> { if (!rs.next()) throw new CatalogException("SKU not found"); },skuId);
+        Boolean exists=jdbc.query("SELECT id FROM catalog_sku WHERE id=? FOR UPDATE", (org.springframework.jdbc.core.ResultSetExtractor<Boolean>) rs -> rs.next(),skuId);
+        if (!Boolean.TRUE.equals(exists)) throw new CatalogException("SKU not found");
         StoredImage previous=image(skuId);
         if(previous!=null) {
             enqueueImageCleanup(previous,now);

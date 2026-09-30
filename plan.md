@@ -80,7 +80,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 - [x] Record all base-price, price-list price, customer-price, and VAT-rate changes through the audit service with old/new values, actor, and timestamp in the same transaction as the change. Include removal of overrides/list entries and assignment/unassignment of customer price lists because these also change effective prices.
 - [x] Build the paginated customer catalog: product-name/SKU-code search, category filter, product descriptions and variants, authenticated thumbnails, exact current quantity, effective net price, VAT and gross display, and clear unavailable states. Hide inactive products/SKUs, retain active products/SKUs at zero stock, and disable adding unavailable variants.
 - [x] Enforce customer-scoped price resolution in application services so request parameters can never select another customer's price list or override.
-- [ ] Verify schema constraints, attribute uniqueness, price precedence, currency/rounding edge cases, audit records, active/out-of-stock visibility, image authorization/lifecycle, pagination/search/filter behavior, and cross-customer price isolation.
+- [x] Verify schema constraints, attribute uniqueness, price precedence, currency/rounding edge cases, audit records, active/out-of-stock visibility, image authorization/lifecycle, pagination/search/filter behavior, and cross-customer price isolation.
 
 **Completion outcome:** Staff can maintain the complete sellable catalog and negotiated pricing, while each customer can browse only active offerings with their own correctly rounded prices, VAT, thumbnails, and exact stock state.
 
