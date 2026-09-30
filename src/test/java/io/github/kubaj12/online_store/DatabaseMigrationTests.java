@@ -188,6 +188,65 @@ class DatabaseMigrationTests extends PostgreSqlServiceTestSupport {
 		)).isInstanceOf(DataIntegrityViolationException.class);
 	}
 
+	@Test
+	void upgradesPopulatedV008InventoryAndEnforcesInventoryChangeIntegrity() {
+		MigrationSchema schema = migrations.newSchema();
+		schema.flywayTo(MigrationVersion.fromVersion("008")).migrate();
+		JdbcTemplate jdbc = schema.jdbcTemplate();
+		UUID employeeId = UUID.fromString("01998e62-e700-7000-8000-000000000301");
+		UUID productId = UUID.fromString("01998e62-e700-7000-8000-000000000302");
+		UUID skuId = UUID.fromString("01998e62-e700-7000-8000-000000000303");
+		UUID changeId = UUID.fromString("01998e62-e700-7000-8000-000000000304");
+		UUID missingSkuId = UUID.fromString("01998e62-e700-7000-8000-000000000305");
+		UUID missingActorId = UUID.fromString("01998e62-e700-7000-8000-000000000306");
+
+		jdbc.update("""
+				INSERT INTO identity_user (id, email, password_hash, role, status, created_at, updated_at)
+				VALUES (?, 'inventory-employee@example.test', 'hash', 'EMPLOYEE', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", employeeId);
+		insertCatalogProduct(jdbc, productId, "Produkt magazynowy");
+		insertCatalogSku(jdbc, skuId, productId, "SKU-STOCK", "10.00", "23.00", 7, "PLN");
+
+		schema.flyway().migrate();
+		assertThat(jdbc.queryForObject("SELECT inventory_version FROM catalog_sku WHERE id = ?", Long.class, skuId))
+				.isZero();
+
+		jdbc.update("""
+				INSERT INTO inventory_change (id, sku_id, previous_quantity, new_quantity, acting_user_id, changed_at)
+				VALUES (?, ?, 7, 9, ?, TIMESTAMPTZ '2026-09-30 12:34:56.123456+00')
+				""", changeId, skuId, employeeId);
+		assertThat(jdbc.queryForObject("SELECT previous_quantity FROM inventory_change WHERE id = ?", Integer.class, changeId))
+				.isEqualTo(7);
+		assertThat(jdbc.queryForObject("SELECT new_quantity FROM inventory_change WHERE id = ?", Integer.class, changeId))
+				.isEqualTo(9);
+		assertThat(jdbc.queryForObject("SELECT changed_at AT TIME ZONE 'UTC' FROM inventory_change WHERE id = ?", java.time.LocalDateTime.class, changeId))
+				.isEqualTo(java.time.LocalDateTime.parse("2026-09-30T12:34:56.123456"));
+
+		assertThatThrownBy(() -> jdbc.update(
+				"UPDATE catalog_sku SET inventory_version = -1 WHERE id = ?", skuId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO inventory_change (id, sku_id, previous_quantity, new_quantity, acting_user_id, changed_at)
+				VALUES (?, ?, -1, 1, ?, CURRENT_TIMESTAMP)
+				""", UUID.randomUUID(), skuId, employeeId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO inventory_change (id, sku_id, previous_quantity, new_quantity, acting_user_id, changed_at)
+				VALUES (?, ?, 1, -1, ?, CURRENT_TIMESTAMP)
+				""", UUID.randomUUID(), skuId, employeeId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO inventory_change (id, sku_id, previous_quantity, new_quantity, acting_user_id, changed_at)
+				VALUES (?, ?, 1, 2, ?, CURRENT_TIMESTAMP)
+				""", UUID.randomUUID(), missingSkuId, employeeId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO inventory_change (id, sku_id, previous_quantity, new_quantity, acting_user_id, changed_at)
+				VALUES (?, ?, 1, 2, ?, CURRENT_TIMESTAMP)
+				""", UUID.randomUUID(), skuId, missingActorId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
 	private static void insertCatalogProduct(JdbcTemplate jdbc, UUID id, String name) {
 		jdbc.update("""
 				INSERT INTO catalog_product (id, name, category, created_at, updated_at)
