@@ -99,6 +99,7 @@ public class BrowserSecurityConfiguration {
 				// before controller argument binding or application-service lookups.
 				.requestMatchers("/staff/customers", "/staff/customers/**").hasAnyRole("EMPLOYEE", "ADMIN")
 				.requestMatchers("/staff/catalog", "/staff/catalog/**").hasAnyRole("EMPLOYEE", "ADMIN")
+				.requestMatchers("/staff/inventory", "/staff/inventory/**").hasAnyRole("EMPLOYEE", "ADMIN")
 				.anyRequest().authenticated());
 		http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint)
 				.accessDeniedHandler(accessDeniedHandler));

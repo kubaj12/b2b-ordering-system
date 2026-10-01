@@ -247,6 +247,44 @@ class DatabaseMigrationTests extends PostgreSqlServiceTestSupport {
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
+	@Test
+	void backfillsInventoryHistoryVersionsInDeterministicPerSkuOrder() {
+		MigrationSchema schema = migrations.newSchema();
+		schema.flywayTo(MigrationVersion.fromVersion("009")).migrate();
+		JdbcTemplate jdbc = schema.jdbcTemplate();
+		UUID employeeId = UUID.fromString("01998e62-e700-7000-8000-000000000311");
+		UUID productId = UUID.fromString("01998e62-e700-7000-8000-000000000312");
+		UUID skuId = UUID.fromString("01998e62-e700-7000-8000-000000000313");
+		UUID earlierId = UUID.fromString("01998e62-e700-7000-8000-000000000314");
+		UUID laterId = UUID.fromString("01998e62-e700-7000-8000-000000000315");
+
+		jdbc.update("""
+				INSERT INTO identity_user (id, email, password_hash, role, status, created_at, updated_at)
+				VALUES (?, 'inventory-backfill@example.test', 'hash', 'EMPLOYEE', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", employeeId);
+		insertCatalogProduct(jdbc, productId, "Produkt do migracji historii");
+		insertCatalogSku(jdbc, skuId, productId, "SKU-HISTORY", "10.00", "23.00", 7, "PLN");
+		jdbc.update("UPDATE catalog_sku SET inventory_version=4 WHERE id=?", skuId);
+		jdbc.update("""
+				INSERT INTO inventory_change (id,sku_id,previous_quantity,new_quantity,acting_user_id,changed_at)
+				VALUES (?, ?, 7, 8, ?, TIMESTAMPTZ '2026-09-29 10:00:00+00'),
+				       (?, ?, 8, 9, ?, TIMESTAMPTZ '2026-09-29 11:00:00+00')
+				""", earlierId, skuId, employeeId, laterId, skuId, employeeId);
+
+		schema.flyway().migrate();
+
+		List<Long> versions = jdbc.queryForList(
+				"SELECT inventory_version FROM inventory_change WHERE sku_id=? ORDER BY inventory_version",
+				Long.class, skuId);
+		assertThat(versions).containsExactly(1L, 2L);
+		assertThat(jdbc.queryForObject("SELECT inventory_version FROM catalog_sku WHERE id=?", Long.class, skuId))
+				.isEqualTo(4L);
+		assertThat(jdbc.queryForObject("""
+				SELECT id FROM inventory_change WHERE sku_id=?
+				ORDER BY inventory_version DESC, changed_at DESC, id DESC LIMIT 1
+				""", UUID.class, skuId)).isEqualTo(laterId);
+	}
+
 	private static void insertCatalogProduct(JdbcTemplate jdbc, UUID id, String name) {
 		jdbc.update("""
 				INSERT INTO catalog_product (id, name, category, created_at, updated_at)

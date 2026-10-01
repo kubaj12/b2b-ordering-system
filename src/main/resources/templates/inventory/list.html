@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/application :: layout('Magazyn', 'staff-inventory', ~{::content})}"><body>
+<section th:fragment="content" class="vstack gap-4">
+    <div><h1 class="h2 mb-1">Magazyn</h1><p class="text-body-secondary mb-0">Bieżące ilości SKU i historia ostatniej ręcznej zmiany.</p></div>
+    <form class="row g-3 align-items-end bg-white border rounded p-3" method="get" th:action="@{/staff/inventory}">
+        <div class="col-12 col-md-6"><label class="form-label" for="inventory-search">Produkt lub kod SKU</label><input class="form-control" id="inventory-search" name="q" type="search" maxlength="120" th:value="${q}"></div>
+        <div class="col-12 col-md-4"><label class="form-label" for="inventory-category">Kategoria</label><select class="form-select" id="inventory-category" name="category"><option value="">Wszystkie kategorie</option><option th:each="category : ${categories}" th:value="${category}" th:text="${category}" th:selected="${category == selectedCategory}">Kategoria</option></select></div>
+        <div class="col-12 col-md-2 d-grid"><button class="btn btn-primary" type="submit">Szukaj</button></div>
+    </form>
+    <p class="small text-body-secondary mb-0" th:text="|Znaleziono ${inventoryPage.totalElements} SKU|">Znaleziono SKU</p>
+    <div class="table-responsive bg-white border rounded" th:if="${!inventoryPage.items.isEmpty()}">
+        <table class="table table-hover align-middle mb-0"><thead><tr><th scope="col">Produkt</th><th scope="col">SKU</th><th scope="col">Kategoria</th><th scope="col">Ilość</th><th scope="col">Ostatnia zmiana</th><th scope="col">Zmieniono przez</th></tr></thead>
+            <tbody><tr th:each="item : ${inventoryPage.items}"><td th:text="${item.productName}">Produkt</td><td th:text="${item.skuCode}">SKU</td><td th:text="${item.category}">Kategoria</td>
+                <td><form class="d-flex gap-2" method="post" th:action="@{/staff/inventory}"><input type="hidden" name="skuId" th:value="${item.skuId}"><input type="hidden" name="version" th:value="${item.version}"><input type="hidden" name="q" th:value="${q}"><input type="hidden" name="category" th:value="${selectedCategory}"><input type="hidden" name="page" th:value="${inventoryPage.number}"><label class="visually-hidden" th:for="|quantity-${item.skuId}|">Ilość dla <span th:text="${item.skuCode}">SKU</span></label><input class="form-control form-control-sm" style="max-width:8rem" type="number" min="0" max="2147483647" step="1" required name="quantity" th:id="|quantity-${item.skuId}|" th:value="${item.quantity}"><button class="btn btn-sm btn-outline-primary" type="submit">Zapisz</button></form></td>
+                <td th:text="${item.changedAt == null ? '—' : #temporals.format(item.changedAt.atZone(displayZone), 'dd.MM.yyyy HH:mm')}">—</td><td th:text="${item.changedBy == null ? '—' : item.changedBy}">—</td></tr></tbody>
+        </table>
+    </div>
+    <div class="alert alert-info mb-0" th:if="${inventoryPage.items.isEmpty()}">Nie znaleziono SKU dla podanych kryteriów.</div>
+    <nav th:replace="~{fragments/pagination :: pagination(${inventoryPage}, '/staff/inventory', ${retainedParameters})}"></nav>
+</section></body></html>
