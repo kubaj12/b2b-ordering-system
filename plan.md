@@ -91,7 +91,7 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 - [x] Add an inventory-change migration and SKU concurrency/version support, storing SKU, previous/new quantity, acting employee, and UTC timestamp for every manual change.
 - [x] Implement a dedicated paginated staff inventory page with product/SKU search, category filter, exact quantities, last changer/time, and inline non-negative integer updates.
 - [x] Require each inline update to carry a monotonic version the employee saw; atomically reject stale writes with a clear conflict showing the latest quantity rather than overwriting it, even when intervening edits returned the quantity to its original value. Every stock writer, including order submission, must advance the version and coordinate on the same SKU row. Route manual quantity changes from any staff screen through this inventory service.
-- [ ] Apply authorization, validation, CSRF, and consistent full-page/HTMX error behavior to inventory reads and writes; record the inventory audit trail in the same successful transaction as each quantity update.
+- [x] Apply authorization, validation, CSRF, and consistent full-page/HTMX error behavior to inventory reads and writes; record the inventory audit trail in the same successful transaction as each quantity update.
 - [ ] Verify filtering/pagination, integer/boundary validation, last-change display, audit contents, unauthorized access, CSRF handling, and two-editor optimistic-lock conflicts with PostgreSQL integration and MVC tests.
 
 **Completion outcome:** Staff can safely maintain the single SKU quantity field with a complete change trail, and concurrent manual edits cannot silently lose data.

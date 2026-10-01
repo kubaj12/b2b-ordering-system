@@ -16,9 +16,11 @@ public class InventoryService {
     public InventoryService(InventoryStore store, AuditEventRecorder audit) { this.store=store; this.audit=audit; }
 
     @Transactional(readOnly=true) public Page page(String search, String category, int requestedPage) {
-        String term=search==null?"":search.trim(); if(term.length()>120) term=term.substring(0,120);
+        String term=search==null?"":search.trim();
+        if(term.length()>120 || requestedPage<0 || requestedPage>1_000_000)
+            throw WebErrorException.validation();
         String selected=category==null?"":category.trim();
-        int page=Math.max(0,Math.min(requestedPage,1_000_000)), size=20;
+        int page=requestedPage, size=20;
         var result=store.page(term,selected,page,size);
         int pages=(int)Math.min(Integer.MAX_VALUE,(result.total()+size-1)/size);
         if(pages>0 && page>=pages) { page=pages-1; result=store.page(term,selected,page,size); }
