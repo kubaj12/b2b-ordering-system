@@ -40,9 +40,13 @@ public class InventoryController {
         var data=inventory.page(q,category,page); var retained=new LinkedHashMap<String,String[]>();
         if(q!=null&&!q.isBlank()) retained.put("q",new String[]{q.trim()});
         if(category!=null&&!category.isBlank()) retained.put("category",new String[]{category.trim()});
-        var model=Map.<String,Object>of("inventoryPage",data,"categories",inventory.categories(),"q",q,
-                "displayZone",displayZone,
-                "selectedCategory",category,"retainedParameters",retained);
+        var model=new LinkedHashMap<String,Object>();
+        model.put("inventoryPage",data);
+        model.put("categories",inventory.categories());
+        model.put("q",q);
+        model.put("displayZone",displayZone);
+        model.put("selectedCategory",category);
+        model.put("retainedParameters",retained);
         return BrowserResponse.render(HtmxRequest.from(request),response,"inventory/list","inventory/list :: content",model);
     }
     @PostMapping public ModelAndView update(@RequestParam UUID skuId,@RequestParam @Min(0) int quantity,

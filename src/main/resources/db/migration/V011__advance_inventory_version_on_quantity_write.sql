@@ -6,6 +6,7 @@ CREATE OR REPLACE FUNCTION advance_catalog_sku_inventory_version()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+	BEGIN
 	NEW.inventory_version := OLD.inventory_version + 1;
 	RETURN NEW;
 END;
