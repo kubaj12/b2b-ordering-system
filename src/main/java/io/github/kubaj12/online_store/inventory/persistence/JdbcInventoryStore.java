@@ -46,10 +46,11 @@ public class JdbcInventoryStore implements InventoryStore {
         if(current.isEmpty()) return null;
         int previous=(int)current.getFirst()[0]; long actualVersion=current.getFirst()[1];
         if(actualVersion!=expectedVersion) return new UpdateResult(false,previous);
-        long nextVersion=actualVersion+1;
-        jdbc.update("UPDATE catalog_sku SET available_quantity=?,inventory_version=?,updated_at=? WHERE id=?",
-                quantity,nextVersion,OffsetDateTime.ofInstant(clock.instant(),ZoneOffset.UTC),
-                skuId);
+        // V011 owns version advancement in the database so every quantity writer, including
+        // order submission, serializes on and advances the same catalog_sku row.
+        jdbc.update("UPDATE catalog_sku SET available_quantity=?,updated_at=? WHERE id=?",
+                quantity,OffsetDateTime.ofInstant(clock.instant(),ZoneOffset.UTC),skuId);
+        long nextVersion=jdbc.queryForObject("SELECT inventory_version FROM catalog_sku WHERE id=?",Long.class,skuId);
         if(previous!=quantity) jdbc.update("""
                 INSERT INTO inventory_change(id,sku_id,previous_quantity,new_quantity,acting_user_id,inventory_version,changed_at)
                 VALUES (?,?,?,?,?,?,?)

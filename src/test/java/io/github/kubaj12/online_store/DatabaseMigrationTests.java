@@ -285,6 +285,29 @@ class DatabaseMigrationTests extends PostgreSqlServiceTestSupport {
 				""", UUID.class, skuId)).isEqualTo(laterId);
 	}
 
+	@Test
+	void advancesSkuInventoryVersionForEveryQuantityWriteIncludingNoOpsAndReturnedValues() {
+		MigrationSchema schema = migrations.newSchema();
+		JdbcTemplate jdbc = schema.jdbcTemplate();
+		schema.flyway().migrate();
+		UUID productId = UUID.fromString("01998e62-e700-7000-8000-000000000321");
+		UUID skuId = UUID.fromString("01998e62-e700-7000-8000-000000000322");
+		insertCatalogProduct(jdbc, productId, "Produkt wersjonowany");
+		insertCatalogSku(jdbc, skuId, productId, "SKU-VERSION", "10.00", "23.00", 7, "PLN");
+
+		// Two forms may both have displayed version zero. Even a successful no-op submission
+		// consumes that version, so the other form cannot also be accepted with its stale token.
+		jdbc.update("UPDATE catalog_sku SET available_quantity=available_quantity WHERE id=?", skuId);
+		assertThat(jdbc.queryForObject("SELECT inventory_version FROM catalog_sku WHERE id=?", Long.class, skuId))
+				.isEqualTo(1L);
+		jdbc.update("UPDATE catalog_sku SET available_quantity=9 WHERE id=?", skuId);
+		jdbc.update("UPDATE catalog_sku SET available_quantity=7 WHERE id=?", skuId);
+		assertThat(jdbc.queryForObject("SELECT available_quantity FROM catalog_sku WHERE id=?", Integer.class, skuId))
+				.isEqualTo(7);
+		assertThat(jdbc.queryForObject("SELECT inventory_version FROM catalog_sku WHERE id=?", Long.class, skuId))
+				.isEqualTo(3L);
+	}
+
 	private static void insertCatalogProduct(JdbcTemplate jdbc, UUID id, String name) {
 		jdbc.update("""
 				INSERT INTO catalog_product (id, name, category, created_at, updated_at)
