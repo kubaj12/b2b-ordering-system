@@ -308,6 +308,124 @@ class DatabaseMigrationTests extends PostgreSqlServiceTestSupport {
 				.isEqualTo(3L);
 	}
 
+	@Test
+	void upgradesPopulatedV011SchemaAndEnforcesCartAndCheckoutReviewIntegrity() {
+		MigrationSchema schema = migrations.newSchema();
+		schema.flywayTo(MigrationVersion.fromVersion("011")).migrate();
+		JdbcTemplate jdbc = schema.jdbcTemplate();
+		UUID customerId = UUID.randomUUID();
+		UUID otherCustomerId = UUID.randomUUID();
+		UUID productId = UUID.randomUUID();
+		UUID skuId = UUID.randomUUID();
+		UUID cartId = UUID.randomUUID();
+		UUID otherCartId = UUID.randomUUID();
+		UUID reviewId = UUID.randomUUID();
+		UUID otherReviewId = UUID.randomUUID();
+		java.sql.Timestamp now = java.sql.Timestamp.from(java.time.Instant.now());
+
+		jdbc.update("""
+				INSERT INTO identity_user (id, email, password_hash, role, status, created_at, updated_at)
+				VALUES (?, ?, 'hash', 'CUSTOMER', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+				       (?, ?, 'hash', 'CUSTOMER', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				""", customerId, "cart-" + customerId + "@example.test",
+				otherCustomerId, "cart-" + otherCustomerId + "@example.test");
+		for (UUID id : List.of(customerId, otherCustomerId)) {
+			jdbc.update("""
+					INSERT INTO customer_profile (
+						user_id, company_name, nip, billing_street, billing_building_number,
+						billing_postal_code, billing_city, created_at, updated_at
+					) VALUES (?, 'Firma', ?, 'Prosta', '1', '00-001', 'Warszawa', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+					""", id, id.equals(customerId) ? "5260250995" : "8567346215");
+		}
+		insertCatalogProduct(jdbc, productId, "Produkt koszykowy");
+		insertCatalogSku(jdbc, skuId, productId, "SKU-CART", "10.00", "23.00", 5, "PLN");
+		schema.flyway().migrate();
+
+		jdbc.update("""
+				INSERT INTO cart_ordering_cart (id, customer_id, created_at, updated_at)
+				VALUES (?, ?, ?, ?)
+				""", cartId, customerId, now, now);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO cart_ordering_cart (id, customer_id, created_at, updated_at)
+				VALUES (?, ?, ?, ?)
+				""", otherCartId, customerId, now, now))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		jdbc.update("""
+				INSERT INTO cart_ordering_cart (id, customer_id, status, created_at, updated_at, completed_at)
+				VALUES (?, ?, 'COMPLETED', ?, ?, ?)
+				""", otherCartId, customerId, now, now, now);
+		UUID otherCustomerCartId = UUID.randomUUID();
+		jdbc.update("""
+				INSERT INTO cart_ordering_cart (id, customer_id, created_at, updated_at)
+				VALUES (?, ?, ?, ?)
+				""", otherCustomerCartId, otherCustomerId, now, now);
+
+		jdbc.update("""
+				INSERT INTO cart_ordering_cart_item (cart_id, sku_id, quantity, created_at, updated_at)
+				VALUES (?, ?, 2, ?, ?)
+				""", cartId, skuId, now, now);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO cart_ordering_cart_item (cart_id, sku_id, quantity, created_at, updated_at)
+				VALUES (?, ?, 3, ?, ?)
+				""", cartId, skuId, now, now))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update(
+				"UPDATE cart_ordering_cart_item SET quantity=0 WHERE cart_id=? AND sku_id=?", cartId, skuId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+
+		byte[] tokenHash = new byte[32];
+		jdbc.update("""
+				INSERT INTO cart_ordering_checkout_review (
+					id, cart_id, customer_id, token_hash, cart_revision, created_at, updated_at, expires_at
+				) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+				""", reviewId, cartId, customerId, tokenHash, now, now,
+				java.sql.Timestamp.from(now.toInstant().plusSeconds(600)));
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO cart_ordering_checkout_review (
+					id, cart_id, customer_id, token_hash, cart_revision, created_at, updated_at, expires_at
+				) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+				""", otherReviewId, cartId, otherCustomerId, differentTokenHash(), now, now,
+				java.sql.Timestamp.from(now.toInstant().plusSeconds(600))))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO cart_ordering_checkout_review (
+					id, cart_id, customer_id, token_hash, cart_revision, created_at, updated_at, expires_at
+				) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+				""", otherReviewId, cartId, customerId, tokenHash, now, now,
+				java.sql.Timestamp.from(now.toInstant().plusSeconds(600))))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbc.update("""
+				INSERT INTO cart_ordering_checkout_review (
+					id, cart_id, customer_id, token_hash, cart_revision, created_at, updated_at, expires_at
+				) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+				""", otherReviewId, cartId, customerId, new byte[31], now, now,
+				java.sql.Timestamp.from(now.toInstant().plusSeconds(600))))
+				.isInstanceOf(DataIntegrityViolationException.class);
+
+		jdbc.update("""
+				INSERT INTO cart_ordering_checkout_review_item (
+					review_id, sku_id, quantity, reviewed_unit_net_price, reviewed_vat_rate,
+					price_fingerprint, vat_fingerprint
+				) VALUES (?, ?, 2, 10.00, 23.00, ?, ?)
+				""", reviewId, skuId, new byte[32], new byte[32]);
+		assertThatThrownBy(() -> jdbc.update(
+				"UPDATE cart_ordering_checkout_review_item SET quantity=0 WHERE review_id=? AND sku_id=?",
+				reviewId, skuId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		jdbc.update("UPDATE cart_ordering_checkout_review SET invalidated_at=?, updated_at=? WHERE id=?",
+				now, now, reviewId);
+		assertThatThrownBy(() -> jdbc.update(
+				"UPDATE cart_ordering_checkout_review SET consumed_at=?, updated_at=? WHERE id=?",
+				now, now, reviewId))
+				.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	private static byte[] differentTokenHash() {
+		byte[] hash = new byte[32];
+		hash[0] = 1;
+		return hash;
+	}
+
 	private static void insertCatalogProduct(JdbcTemplate jdbc, UUID id, String name) {
 		jdbc.update("""
 				INSERT INTO catalog_product (id, name, category, created_at, updated_at)
