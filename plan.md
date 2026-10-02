@@ -100,8 +100,8 @@ In the roadmap, **staff** means either an `EMPLOYEE` or an `ADMIN`; administrato
 
 **Depends on:** Phase 4 effective pricing/catalog and Phase 5 current inventory.
 
-- [ ] Add migrations for carts, cart items, and one-time checkout reviews/tokens, including positive quantities, unique cart/SKU lines, at most one `ACTIVE` cart per customer, `ACTIVE`/`COMPLETED` status constraints, the 500-line limit enforced by service/locking, token hashes, and reviewed price/VAT fingerprints.
-- [ ] Implement lazy creation and cross-session reuse of the customer's active cart; complete carts are immutable and the next edit creates a new active cart.
+- [x] Add migrations for carts, cart items, and one-time checkout reviews/tokens, including positive quantities, unique cart/SKU lines, at most one `ACTIVE` cart per customer, `ACTIVE`/`COMPLETED` status constraints, the 500-line limit enforced by service/locking, token hashes, and reviewed price/VAT fingerprints.
+- [x] Implement lazy creation and cross-session reuse of the customer's active cart; complete carts are immutable and the next edit creates a new active cart.
 - [ ] Build customer-only add/update/remove flows that merge duplicate SKU additions, accept only positive integers, reject additions for inactive products/SKUs or currently out-of-stock SKUs, enforce 500 distinct lines, and derive customer ownership exclusively from the authenticated principal. Always allow removal of invalid/unavailable lines. Serialize cart mutations with checkout submission, check merged-quantity overflow, and allow updates to an existing line when the cart already has 500 lines.
 - [ ] Render cart lines using current effective prices, VAT rates, gross values, and stock without reserving inventory; clearly identify catalog changes that require removal or correction.
 - [ ] Build checkout review with recalculated line/order net, VAT, and gross totals in PLN, optional purchase-order number, and a per-order Polish delivery-address form with mandatory contact/address fields and fixed country. Do not expose billing data or add an address book, comment, or second reference field.
