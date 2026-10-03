@@ -58,7 +58,13 @@
                                 <span class="badge text-bg-secondary" th:if="${variant.variant.quantity == 0}">Chwilowo niedostępny · 0 szt.</span>
                             </td>
                             <td class="text-end text-nowrap">
-                                <button th:if="${variant.variant.quantity > 0}" class="btn btn-sm btn-outline-secondary" type="button" disabled aria-disabled="true">Koszyk będzie dostępny wkrótce</button>
+                                <form th:if="${variant.variant.quantity > 0}" class="d-flex gap-2 justify-content-end" method="post" th:action="@{/cart/items}">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                    <input type="hidden" name="skuId" th:value="${variant.variant.id}">
+                                    <label class="visually-hidden" th:for="|add-${variant.variant.id}|">Ilość</label>
+                                    <input class="form-control form-control-sm" style="max-width:5rem" type="number" min="1" step="1" value="1" required name="quantity" th:id="|add-${variant.variant.id}|">
+                                    <button class="btn btn-sm btn-primary text-nowrap" type="submit">Dodaj do koszyka</button>
+                                </form>
                                 <button th:if="${variant.variant.quantity == 0}" class="btn btn-sm btn-outline-secondary" type="button" disabled aria-disabled="true">Brak w magazynie</button>
                             </td>
                         </tr>

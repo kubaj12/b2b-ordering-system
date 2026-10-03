@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,69 @@ public class JdbcCartStore implements CartStore {
             if (!carts.isEmpty()) return carts.getFirst();
             // Checkout completed the conflicting cart between the insert and lookup.
         }
+    }
+
+    @Override
+    public List<Line> lines(UUID cartId) {
+        return jdbc.query("""
+                SELECT i.sku_id, s.code, p.name, i.quantity, s.available_quantity,
+                       p.is_active AS product_active, s.is_active AS sku_active
+                FROM cart_ordering_cart_item i
+                JOIN catalog_sku s ON s.id = i.sku_id
+                JOIN catalog_product p ON p.id = s.product_id
+                WHERE i.cart_id = ? ORDER BY p.name, s.code
+                """, (rs, row) -> new Line(rs.getObject("sku_id", UUID.class), rs.getString("code"),
+                rs.getString("name"), rs.getInt("quantity"), rs.getInt("available_quantity"),
+                rs.getBoolean("product_active"), rs.getBoolean("sku_active")), cartId);
+    }
+
+    @Override
+    public void add(UUID cartId, UUID skuId, int quantity) {
+        Instant now = clock.instant();
+        jdbc.update("""
+                INSERT INTO cart_ordering_cart_item(cart_id, sku_id, quantity, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (cart_id, sku_id) DO UPDATE
+                SET quantity = cart_ordering_cart_item.quantity + EXCLUDED.quantity, updated_at = EXCLUDED.updated_at
+                """, cartId, skuId, quantity, timestamp(now), timestamp(now));
+        touch(cartId, now);
+    }
+
+    @Override
+    public void update(UUID cartId, UUID skuId, int quantity) {
+        Instant now = clock.instant();
+        jdbc.update("UPDATE cart_ordering_cart_item SET quantity = ?, updated_at = ? WHERE cart_id = ? AND sku_id = ?",
+                quantity, timestamp(now), cartId, skuId);
+        touch(cartId, now);
+    }
+
+    @Override
+    public void remove(UUID cartId, UUID skuId) {
+        jdbc.update("DELETE FROM cart_ordering_cart_item WHERE cart_id = ? AND sku_id = ?", cartId, skuId);
+        touch(cartId, clock.instant());
+    }
+
+    private void touch(UUID cartId, Instant now) {
+        jdbc.update("UPDATE cart_ordering_cart SET revision = revision + 1, updated_at = ? WHERE id = ? AND status = 'ACTIVE'",
+                timestamp(now), cartId);
+    }
+
+    public int countLines(UUID cartId) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM cart_ordering_cart_item WHERE cart_id = ?", Integer.class, cartId);
+    }
+
+    public Integer quantity(UUID cartId, UUID skuId) {
+        return jdbc.query("SELECT quantity FROM cart_ordering_cart_item WHERE cart_id = ? AND sku_id = ?",
+                rs -> rs.next() ? rs.getInt(1) : null, cartId, skuId);
+    }
+
+    @Override
+    public Sellability sellability(UUID skuId) {
+        return jdbc.query("""
+                SELECT p.is_active, s.is_active, s.available_quantity FROM catalog_sku s
+                JOIN catalog_product p ON p.id = s.product_id WHERE s.id = ?
+                """, rs -> rs.next() ? new Sellability(true, rs.getBoolean(1), rs.getBoolean(2), rs.getInt(3))
+                        : new Sellability(false, false, false, 0), skuId);
     }
 
     private static OffsetDateTime timestamp(Instant instant) {

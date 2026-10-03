@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/application :: layout('Koszyk', 'customer-cart', ~{::content})}"><body>
+<section th:fragment="content" class="vstack gap-4">
+    <div><h1 class="h2">Koszyk</h1><p class="text-body-secondary">Koszyk nie rezerwuje towaru. Dostępność zostanie ponownie sprawdzona przy składaniu zamówienia.</p></div>
+    <div class="alert alert-info" th:if="${lines.isEmpty()}">Koszyk jest pusty. <a th:href="@{/catalog}">Przejdź do katalogu</a>.</div>
+    <div class="table-responsive" th:unless="${lines.isEmpty()}">
+        <table class="table align-middle"><thead><tr><th>Produkt</th><th>SKU</th><th>Ilość</th><th>Dostępność</th><th>Stan pozycji</th><th></th></tr></thead>
+            <tbody><tr th:each="line : ${lines}">
+                <td th:text="${line.productName}">Produkt</td><td th:text="${line.skuCode}">SKU</td>
+                <td><form class="d-flex gap-2" method="post" th:action="@{/cart/items/{id}(id=${line.skuId})}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <label class="visually-hidden" th:for="|quantity-${line.skuId}|">Ilość</label>
+                    <input class="form-control" style="max-width:7rem" type="number" min="1" step="1" required th:id="|quantity-${line.skuId}|" name="quantity" th:value="${line.quantity}">
+                    <button class="btn btn-outline-primary" type="submit">Zmień</button></form></td>
+                <td th:text="|${line.availableQuantity} szt.|">0 szt.</td>
+                <td><span class="badge text-bg-danger" th:if="${!line.productActive or !line.skuActive}">Produkt lub SKU nieaktywne</span>
+                    <span class="badge text-bg-warning" th:if="${line.productActive and line.skuActive and line.availableQuantity == 0}">Brak w magazynie</span>
+                    <span class="badge text-bg-warning" th:if="${line.productActive and line.skuActive and line.availableQuantity > 0 and line.quantity > line.availableQuantity}">Ilość przekracza stan</span>
+                    <span class="badge text-bg-success" th:if="${line.productActive and line.skuActive and line.availableQuantity >= line.quantity}">Dostępny</span></td>
+                <td><form method="post" th:action="@{/cart/items/{id}/remove(id=${line.skuId})}"><input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><button class="btn btn-outline-danger" type="submit">Usuń</button></form></td>
+            </tr></tbody>
+        </table>
+    </div>
+</section></body></html>

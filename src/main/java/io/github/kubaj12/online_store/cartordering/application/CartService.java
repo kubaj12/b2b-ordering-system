@@ -7,6 +7,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import io.github.kubaj12.online_store.shared.web.error.WebErrorException;
 
 /** Customer-scoped access to the persistent active cart. */
 @Service
@@ -33,6 +35,55 @@ public class CartService {
     @Transactional
     public CartStore.Cart cartForEdit() {
         return activeCart();
+    }
+
+    @Transactional
+    public List<CartStore.Line> lines() {
+        return store.lines(store.findOrCreateActive(authenticatedCustomerId()).id());
+    }
+
+    @Transactional
+    public void add(UUID skuId, int quantity) {
+        requirePositive(quantity);
+        var cart = store.findOrCreateActive(authenticatedCustomerId());
+        var sellable = store.sellability(skuId);
+        if (!sellable.found() || !sellable.productActive() || !sellable.skuActive())
+            throw WebErrorException.conflict("cart.sku.inactive");
+        if (sellable.stock() <= 0) throw WebErrorException.conflict("cart.sku.out-of-stock");
+        Integer previous = store.quantity(cart.id(), skuId);
+        if (previous != null && quantity > Integer.MAX_VALUE - previous)
+            throw WebErrorException.validation("cart.quantity.overflow");
+        if (previous == null && store.countLines(cart.id()) >= 500)
+            throw WebErrorException.validation("cart.lines.limit");
+        store.add(cart.id(), skuId, quantity);
+    }
+
+    @Transactional
+    public void update(UUID skuId, int quantity) {
+        requirePositive(quantity);
+        var cart = store.findOrCreateActive(authenticatedCustomerId());
+        Integer previous = store.quantity(cart.id(), skuId);
+        if (previous == null) throw WebErrorException.notFound("cart.line.not-found");
+        if (quantity > previous) {
+            var sellable = store.sellability(skuId);
+            if (!sellable.found() || !sellable.productActive() || !sellable.skuActive())
+                throw WebErrorException.conflict("cart.sku.inactive");
+            if (sellable.stock() <= 0) throw WebErrorException.conflict("cart.sku.out-of-stock");
+        }
+        // Updating an existing line remains possible at the 500-line boundary and
+        // intentionally does not require the SKU to remain sellable.
+        store.update(cart.id(), skuId, quantity);
+    }
+
+    @Transactional
+    public void remove(UUID skuId) {
+        var cart = store.findOrCreateActive(authenticatedCustomerId());
+        // Removal is deliberately unconditional so invalid/unavailable lines can be cleared.
+        store.remove(cart.id(), skuId);
+    }
+
+    private static void requirePositive(int quantity) {
+        if (quantity <= 0) throw WebErrorException.validation("cart.quantity.positive");
     }
 
     private static UUID authenticatedCustomerId() {
