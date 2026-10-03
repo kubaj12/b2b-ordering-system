@@ -27,7 +27,7 @@ public class CustomerCartController {
     @GetMapping
     public ModelAndView show(HttpServletRequest request, HttpServletResponse response) {
         return BrowserResponse.render(HtmxRequest.from(request), response, "cart/customer-cart", "cart/customer-cart :: content",
-                Map.of("lines", carts.lines()));
+                Map.of("cart", carts.lines()));
     }
 
     @PostMapping("/items")

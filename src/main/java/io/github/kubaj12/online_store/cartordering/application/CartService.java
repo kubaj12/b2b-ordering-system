@@ -8,15 +8,25 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import io.github.kubaj12.online_store.catalogpricing.application.EffectivePriceResolver;
+import io.github.kubaj12.online_store.shared.money.DecimalPriceCalculator;
 import io.github.kubaj12.online_store.shared.web.error.WebErrorException;
 
 /** Customer-scoped access to the persistent active cart. */
 @Service
 public class CartService {
     private final CartStore store;
+    private final EffectivePriceResolver prices;
 
-    public CartService(CartStore store) {
+    public record PricedLine(CartStore.Line line, EffectivePriceResolver.EffectivePrice price,
+            DecimalPriceCalculator.Amounts amounts) { }
+    public record CartView(List<PricedLine> lines, DecimalPriceCalculator.Amounts totals) { }
+
+    public CartService(CartStore store, EffectivePriceResolver prices) {
         this.store = store;
+        this.prices = prices;
     }
 
     /**
@@ -38,8 +48,18 @@ public class CartService {
     }
 
     @Transactional
-    public List<CartStore.Line> lines() {
-        return store.lines(store.findOrCreateActive(authenticatedCustomerId()).id());
+    public CartView lines() {
+        var lines = store.lines(store.findOrCreateActive(authenticatedCustomerId()).id());
+        var effective = prices.resolveAll(lines.stream().map(CartStore.Line::skuId).toList());
+        var priced = new ArrayList<PricedLine>();
+        var inputs = new ArrayList<DecimalPriceCalculator.LineInput>();
+        for (var line : lines) {
+            var price = effective.get(line.skuId());
+            var amounts = DecimalPriceCalculator.line(price.unitNetPrice(), price.vatRate(), line.quantity());
+            priced.add(new PricedLine(line, price, amounts));
+            inputs.add(new DecimalPriceCalculator.LineInput(price.unitNetPrice(), price.vatRate(), line.quantity()));
+        }
+        return new CartView(List.copyOf(priced), DecimalPriceCalculator.total(inputs));
     }
 
     @Transactional

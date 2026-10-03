@@ -12,10 +12,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import io.github.kubaj12.online_store.identityaccess.application.AccountPrincipal;
+import io.github.kubaj12.online_store.catalogpricing.application.EffectivePriceResolver;
 
 class CartServiceTests {
     private final CartStore store = mock(CartStore.class);
-    private final CartService service = new CartService(store);
+    private final CartService service = new CartService(store, mock(EffectivePriceResolver.class));
 
     @AfterEach
     void clearSecurityContext() {
