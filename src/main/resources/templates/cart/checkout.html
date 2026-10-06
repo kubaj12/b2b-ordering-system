@@ -2,6 +2,7 @@
 <section th:fragment="content" class="vstack gap-4">
     <div><h1 class="h2">Dostawa i podsumowanie</h1><p class="text-body-secondary">Sprawdź aktualne ceny. Ceny i dostępność zostaną ponownie zweryfikowane przy składaniu zamówienia.</p></div>
     <div class="alert alert-warning" th:if="${cartUnavailable}">Niektóre pozycje są nieaktywne lub ich ilość przekracza dostępny stan. <a th:href="@{/cart}">Popraw koszyk</a>, aby kontynuować.</div>
+    <div class="alert alert-warning" th:if="${reviewChanged}">Nie udało się zapisać podsumowania, ponieważ dane koszyka lub dostępność zmieniły się w trakcie przeliczania. Sprawdź pozycje i ponownie wybierz „Przelicz i sprawdź podsumowanie”.</div>
     <div class="alert alert-success" th:if="${reviewIssued}">Podsumowanie zostało przeliczone i zapisane. W razie zmiany koszyka lub cen sprawdź je ponownie przed złożeniem zamówienia.</div>
     <div class="table-responsive">
         <table class="table align-middle"><thead><tr><th>Produkt</th><th>SKU</th><th>Ilość</th><th>Cena netto / szt.</th><th>VAT</th><th>Netto</th><th>VAT</th><th>Brutto</th><th>Dostępność</th></tr></thead>
@@ -9,7 +10,7 @@
                 <td th:text="${entry.line.quantity}">1</td><td th:text="|${#numbers.formatDecimal(entry.price.unitNetPrice,1,2)} zł|">0,00 zł</td>
                 <td th:text="|${#numbers.formatDecimal(entry.price.vatRate,1,2)}%|">23%</td>
                 <td th:text="|${#numbers.formatDecimal(entry.amounts.net,1,2)} zł|">0,00 zł</td><td th:text="|${#numbers.formatDecimal(entry.amounts.vat,1,2)} zł|">0,00 zł</td><td th:text="|${#numbers.formatDecimal(entry.amounts.gross,1,2)} zł|">0,00 zł</td>
-                <td><span class="badge text-bg-danger" th:if="${!entry.line.productActive or !entry.line.skuActive}">Produkt lub SKU nieaktywne</span><span class="badge text-bg-warning" th:if="${entry.line.productActive and entry.line.skuActive and entry.line.availableQuantity < entry.line.quantity}">Dostępne: <span th:text="${entry.line.availableQuantity}">0</span> szt.</span><span class="badge text-bg-success" th:if="${entry.line.productActive and entry.line.skuActive and entry.line.availableQuantity >= entry.line.quantity}">Dostępne</span></td>
+                <td><span class="badge text-bg-danger" th:if="${lineIssues[entry.line.skuId] != null}" th:text="${lineIssues[entry.line.skuId]}">Popraw pozycję</span><span class="badge text-bg-success" th:if="${lineIssues[entry.line.skuId] == null}">Dostępne</span><a class="d-block mt-1" th:if="${lineIssues[entry.line.skuId] != null}" th:href="@{/cart}">Edytuj koszyk</a></td>
             </tr></tbody></table>
         <div class="d-flex flex-wrap justify-content-end gap-4 fw-semibold"><span th:text="|Razem netto: ${#numbers.formatDecimal(cart.totals.net,1,2)} zł|">Razem netto</span><span th:text="|VAT: ${#numbers.formatDecimal(cart.totals.vat,1,2)} zł|">VAT</span><span th:text="|Razem brutto: ${#numbers.formatDecimal(cart.totals.gross,1,2)} zł|">Razem brutto</span></div>
     </div>

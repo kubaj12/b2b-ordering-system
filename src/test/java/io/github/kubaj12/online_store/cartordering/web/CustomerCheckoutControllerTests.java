@@ -7,6 +7,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -79,5 +81,34 @@ class CustomerCheckoutControllerTests {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Razem brutto: 24,60 zł")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("zapisane")));
         verify(reviews).issue();
+    }
+
+    @Test void redirectsToCartWhenCartBecomesEmptyDuringReviewIssuance() throws Exception {
+        var availableCart = carts.lines();
+        var emptyCart = new CartService.CartView(List.of(), DecimalPriceCalculator.total(List.of()));
+        when(carts.lines()).thenReturn(availableCart, emptyCart);
+        when(reviews.issue()).thenThrow(new IllegalStateException("Checkout requires a non-empty cart"));
+
+        mvc.perform(validCheckoutPost())
+                .andExpect(status().isSeeOther())
+                .andExpect(redirectedUrl("/cart"));
+    }
+
+    @Test void htmxRedirectsToCartWhenCartBecomesEmptyDuringReviewIssuance() throws Exception {
+        var availableCart = carts.lines();
+        var emptyCart = new CartService.CartView(List.of(), DecimalPriceCalculator.total(List.of()));
+        when(carts.lines()).thenReturn(availableCart, emptyCart);
+        when(reviews.issue()).thenThrow(new IllegalStateException("Checkout requires a non-empty cart"));
+
+        mvc.perform(validCheckoutPost().header("HX-Request", "true"))
+                .andExpect(status().isNoContent())
+                .andExpect(header().string("HX-Redirect", "/cart"));
+    }
+
+    private static org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder validCheckoutPost() {
+        return post("/cart/checkout").with(SecurityTestUsers.customer()).with(csrf())
+                .param("contactName", "Jan Kowalski").param("contactPhone", "+48 600 700 800")
+                .param("street", "Prosta").param("buildingNumber", "1")
+                .param("postalCode", "00-001").param("city", "Warszawa");
     }
 }

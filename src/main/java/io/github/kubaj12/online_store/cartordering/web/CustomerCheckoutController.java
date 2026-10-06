@@ -30,9 +30,11 @@ public class CustomerCheckoutController {
 
     @GetMapping
     public ModelAndView show(HttpServletRequest request, HttpServletResponse response) {
+        // lines() reloads the persisted cart and resolves effective price/VAT for
+        // every SKU on each display, so a checkout page never reuses stale values.
         var view = carts.lines();
         if (view.lines().isEmpty()) return BrowserResponse.redirect(HtmxRequest.from(request), response, "/cart");
-        return render(request, response, view, new CheckoutForm(), null);
+        return render(request, response, view, new CheckoutForm(), Map.of("reviewIssued", false));
     }
 
     @PostMapping
@@ -40,9 +42,7 @@ public class CustomerCheckoutController {
             HttpServletRequest request, HttpServletResponse response, Model model) {
         var current = carts.lines();
         if (current.lines().isEmpty()) return BrowserResponse.redirect(HtmxRequest.from(request), response, "/cart");
-        boolean unavailable = current.lines().stream().anyMatch(line -> !line.line().productActive()
-                || !line.line().skuActive() || line.line().availableQuantity() < line.line().quantity());
-        if (unavailable) model.addAttribute("cartUnavailable", true);
+        boolean unavailable = hasUnavailableLines(current);
         if (!errors.hasErrors() && !unavailable) {
             try {
                 var review = reviews.issue();
@@ -50,7 +50,11 @@ public class CustomerCheckoutController {
                 current = review.cart();
                 model.addAttribute("reviewIssued", true);
             } catch (IllegalStateException changed) {
-                model.addAttribute("cartUnavailable", true);
+                model.addAttribute("reviewChanged", true);
+                current = carts.lines();
+                if (current.lines().isEmpty()) {
+                    return BrowserResponse.redirect(HtmxRequest.from(request), response, "/cart");
+                }
             }
         }
         return render(request, response, current, form, model.asMap());
@@ -62,7 +66,25 @@ public class CustomerCheckoutController {
         attributes.put("cart", cart); attributes.put("form", form);
         attributes.put("cartUnavailable", cart.lines().stream().anyMatch(line -> !line.line().productActive()
                 || !line.line().skuActive() || line.line().availableQuantity() < line.line().quantity()));
+        attributes.put("lineIssues", cart.lines().stream().filter(line -> lineIssue(line) != null)
+                .collect(java.util.stream.Collectors.toMap(line -> line.line().skuId(),
+                        CustomerCheckoutController::lineIssue, (first, ignored) -> first)));
         if (extra != null) attributes.putAll(extra);
         return BrowserResponse.render(HtmxRequest.from(request), response, "cart/checkout", "cart/checkout :: content", attributes);
+    }
+
+    private static boolean hasUnavailableLines(CartService.CartView cart) {
+        return cart.lines().stream().anyMatch(line -> lineIssue(line) != null);
+    }
+
+    private static String lineIssue(CartService.PricedLine line) {
+        if (!line.line().productActive()) return "Produkt jest nieaktywny. Usuń pozycję z koszyka.";
+        if (!line.line().skuActive()) return "Wariant SKU jest nieaktywny. Usuń pozycję z koszyka.";
+        if (line.line().availableQuantity() < line.line().quantity()) {
+            return line.line().availableQuantity() == 0
+                    ? "Brak dostępnego stanu. Usuń pozycję z koszyka."
+                    : "Dostępnych jest " + line.line().availableQuantity() + " szt. Zmień ilość w koszyku.";
+        }
+        return null;
     }
 }
