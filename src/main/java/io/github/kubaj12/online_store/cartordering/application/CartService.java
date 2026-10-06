@@ -51,6 +51,12 @@ public class CartService {
     public CartView lines() {
         var lines = store.lines(store.findOrCreateActive(authenticatedCustomerId()).id());
         var effective = prices.resolveAll(lines.stream().map(CartStore.Line::skuId).toList());
+        return priceLines(lines, effective);
+    }
+
+    /** Prices a supplied cart snapshot from one resolution result, for checkout snapshot consistency. */
+    public CartView priceLines(List<CartStore.Line> lines,
+            java.util.Map<UUID, EffectivePriceResolver.EffectivePrice> effective) {
         var priced = new ArrayList<PricedLine>();
         var inputs = new ArrayList<DecimalPriceCalculator.LineInput>();
         for (var line : lines) {
@@ -60,6 +66,11 @@ public class CartService {
             inputs.add(new DecimalPriceCalculator.LineInput(price.unitNetPrice(), price.vatRate(), line.quantity()));
         }
         return new CartView(List.copyOf(priced), DecimalPriceCalculator.total(inputs));
+    }
+
+    @Transactional
+    public CartStore.Cart activeCartForCheckout() {
+        return store.findOrCreateActive(authenticatedCustomerId());
     }
 
     @Transactional

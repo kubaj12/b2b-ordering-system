@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="pl" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/application :: layout('Dane dostawy i podsumowanie', 'customer-cart', ~{::content})}"><body>
+<section th:fragment="content" class="vstack gap-4">
+    <div><h1 class="h2">Dostawa i podsumowanie</h1><p class="text-body-secondary">Sprawdź aktualne ceny. Ceny i dostępność zostaną ponownie zweryfikowane przy składaniu zamówienia.</p></div>
+    <div class="alert alert-warning" th:if="${cartUnavailable}">Niektóre pozycje są nieaktywne lub ich ilość przekracza dostępny stan. <a th:href="@{/cart}">Popraw koszyk</a>, aby kontynuować.</div>
+    <div class="alert alert-success" th:if="${reviewIssued}">Podsumowanie zostało przeliczone i zapisane. W razie zmiany koszyka lub cen sprawdź je ponownie przed złożeniem zamówienia.</div>
+    <div class="table-responsive">
+        <table class="table align-middle"><thead><tr><th>Produkt</th><th>SKU</th><th>Ilość</th><th>Cena netto / szt.</th><th>VAT</th><th>Netto</th><th>VAT</th><th>Brutto</th><th>Dostępność</th></tr></thead>
+            <tbody><tr th:each="entry : ${cart.lines}"><td th:text="${entry.line.productName}">Produkt</td><td th:text="${entry.line.skuCode}">SKU</td>
+                <td th:text="${entry.line.quantity}">1</td><td th:text="|${#numbers.formatDecimal(entry.price.unitNetPrice,1,2)} zł|">0,00 zł</td>
+                <td th:text="|${#numbers.formatDecimal(entry.price.vatRate,1,2)}%|">23%</td>
+                <td th:text="|${#numbers.formatDecimal(entry.amounts.net,1,2)} zł|">0,00 zł</td><td th:text="|${#numbers.formatDecimal(entry.amounts.vat,1,2)} zł|">0,00 zł</td><td th:text="|${#numbers.formatDecimal(entry.amounts.gross,1,2)} zł|">0,00 zł</td>
+                <td><span class="badge text-bg-danger" th:if="${!entry.line.productActive or !entry.line.skuActive}">Produkt lub SKU nieaktywne</span><span class="badge text-bg-warning" th:if="${entry.line.productActive and entry.line.skuActive and entry.line.availableQuantity < entry.line.quantity}">Dostępne: <span th:text="${entry.line.availableQuantity}">0</span> szt.</span><span class="badge text-bg-success" th:if="${entry.line.productActive and entry.line.skuActive and entry.line.availableQuantity >= entry.line.quantity}">Dostępne</span></td>
+            </tr></tbody></table>
+        <div class="d-flex flex-wrap justify-content-end gap-4 fw-semibold"><span th:text="|Razem netto: ${#numbers.formatDecimal(cart.totals.net,1,2)} zł|">Razem netto</span><span th:text="|VAT: ${#numbers.formatDecimal(cart.totals.vat,1,2)} zł|">VAT</span><span th:text="|Razem brutto: ${#numbers.formatDecimal(cart.totals.gross,1,2)} zł|">Razem brutto</span></div>
+    </div>
+    <form method="post" th:action="@{/cart/checkout}" th:object="${form}" class="vstack gap-4" novalidate>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" th:field="*{country}" value="PL"><input type="hidden" th:field="*{checkoutToken}">
+        <fieldset class="card card-body"><legend class="float-none w-auto px-2 h5">Numer zamówienia zakupu</legend>
+            <label class="form-label" for="purchaseOrderNumber">Numer PO <span class="text-body-secondary">(opcjonalnie)</span></label>
+            <input class="form-control" id="purchaseOrderNumber" th:field="*{purchaseOrderNumber}" maxlength="100" autocomplete="off">
+            <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('purchaseOrderNumber')}" th:errors="*{purchaseOrderNumber}">Nieprawidłowa wartość</div>
+        </fieldset>
+        <fieldset class="card card-body"><legend class="float-none w-auto px-2 h5">Adres dostawy</legend>
+            <div class="row g-3">
+                <div class="col-12"><label class="form-label" for="contactName">Imię i nazwisko osoby kontaktowej *</label><input class="form-control" id="contactName" th:field="*{contactName}" autocomplete="name" required><div class="invalid-feedback d-block" th:if="${#fields.hasErrors('contactName')}" th:errors="*{contactName}"></div></div>
+                <div class="col-md-6"><label class="form-label" for="contactPhone">Telefon kontaktowy *</label><input class="form-control" id="contactPhone" th:field="*{contactPhone}" autocomplete="tel" required><div class="invalid-feedback d-block" th:if="${#fields.hasErrors('contactPhone')}" th:errors="*{contactPhone}">Podaj polski numer telefonu.</div></div>
+                <div class="col-md-6"><label class="form-label" for="street">Ulica *</label><input class="form-control" id="street" th:field="*{street}" autocomplete="address-line1" required><div class="invalid-feedback d-block" th:if="${#fields.hasErrors('street')}" th:errors="*{street}"></div></div>
+                <div class="col-md-4"><label class="form-label" for="buildingNumber">Numer budynku *</label><input class="form-control" id="buildingNumber" th:field="*{buildingNumber}" required><div class="invalid-feedback d-block" th:if="${#fields.hasErrors('buildingNumber')}" th:errors="*{buildingNumber}"></div></div>
+                <div class="col-md-4"><label class="form-label" for="unitNumber">Numer lokalu</label><input class="form-control" id="unitNumber" th:field="*{unitNumber}"></div>
+                <div class="col-md-4"><label class="form-label" for="postalCode">Kod pocztowy *</label><input class="form-control" id="postalCode" th:field="*{postalCode}" autocomplete="postal-code" placeholder="00-000" required><div class="invalid-feedback d-block" th:if="${#fields.hasErrors('postalCode')}" th:errors="*{postalCode}"></div></div>
+                <div class="col-md-8"><label class="form-label" for="city">Miejscowość *</label><input class="form-control" id="city" th:field="*{city}" autocomplete="address-level2" required><div class="invalid-feedback d-block" th:if="${#fields.hasErrors('city')}" th:errors="*{city}"></div></div>
+                <div class="col-md-4"><label class="form-label" for="countryDisplay">Kraj</label><input class="form-control" id="countryDisplay" value="Polska" readonly aria-readonly="true"></div>
+            </div>
+        </fieldset>
+        <div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-secondary" th:href="@{/cart}">Wróć do koszyka</a><button class="btn btn-primary" type="submit" th:disabled="${cartUnavailable}">Przelicz i sprawdź podsumowanie</button></div>
+    </form>
+</section></body></html>
