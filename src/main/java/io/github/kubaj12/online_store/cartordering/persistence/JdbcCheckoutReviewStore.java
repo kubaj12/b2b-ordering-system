@@ -4,6 +4,8 @@ import io.github.kubaj12.online_store.cartordering.application.CheckoutReviewSto
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -20,6 +22,28 @@ public class JdbcCheckoutReviewStore implements CheckoutReviewStore {
         jdbc.update("UPDATE cart_ordering_checkout_review SET invalidated_at = ?, updated_at = ? " +
                 "WHERE cart_id = ? AND consumed_at IS NULL AND invalidated_at IS NULL",
                 timestamp, timestamp, cartId);
+    }
+
+    @Override
+    public List<ReviewSnapshot> activeForCart(UUID cartId, UUID customerId) {
+        var snapshots = jdbc.query("""
+                SELECT id, cart_id, customer_id, token_hash, cart_revision, created_at, expires_at
+                FROM cart_ordering_checkout_review
+                WHERE cart_id = ? AND customer_id = ? AND consumed_at IS NULL AND invalidated_at IS NULL
+                """, (rs, row) -> new ReviewSnapshot(rs.getObject("id", UUID.class),
+                rs.getObject("cart_id", UUID.class), rs.getObject("customer_id", UUID.class),
+                rs.getBytes("token_hash"), rs.getLong("cart_revision"),
+                rs.getObject("created_at", OffsetDateTime.class).toInstant(),
+                rs.getObject("expires_at", OffsetDateTime.class).toInstant(), List.of()), cartId, customerId);
+        return snapshots.stream().map(review -> new ReviewSnapshot(review.id(), review.cartId(), review.customerId(),
+                review.tokenHash(), review.cartRevision(), review.createdAt(), review.expiresAt(),
+                jdbc.query("""
+                        SELECT sku_id, quantity, reviewed_unit_net_price, reviewed_vat_rate,
+                            price_fingerprint, vat_fingerprint
+                        FROM cart_ordering_checkout_review_item WHERE review_id = ?
+                        """, (rs, row) -> new ReviewedItem(rs.getObject("sku_id", UUID.class), rs.getInt("quantity"),
+                        rs.getBigDecimal("reviewed_unit_net_price"), rs.getBigDecimal("reviewed_vat_rate"),
+                        rs.getBytes("price_fingerprint"), rs.getBytes("vat_fingerprint")), review.id()))).toList();
     }
 
     @Override

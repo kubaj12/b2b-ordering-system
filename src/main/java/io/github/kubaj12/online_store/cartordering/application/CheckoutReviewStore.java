@@ -13,5 +13,7 @@ public interface CheckoutReviewStore {
             Instant createdAt, Instant expiresAt, List<ReviewedItem> items) { }
 
     void invalidateActiveForCart(UUID cartId, Instant now);
+    /** Unconsumed, non-invalidated snapshots, scoped to the authenticated cart/customer. */
+    List<ReviewSnapshot> activeForCart(UUID cartId, UUID customerId);
     void save(ReviewSnapshot review);
 }

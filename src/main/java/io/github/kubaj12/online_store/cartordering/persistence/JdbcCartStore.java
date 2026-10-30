@@ -91,6 +91,10 @@ public class JdbcCartStore implements CartStore {
     private void touch(UUID cartId, Instant now) {
         jdbc.update("UPDATE cart_ordering_cart SET revision = revision + 1, updated_at = ? WHERE id = ? AND status = 'ACTIVE'",
                 timestamp(now), cartId);
+        jdbc.update("""
+                UPDATE cart_ordering_checkout_review SET invalidated_at = ?, updated_at = ?
+                WHERE cart_id = ? AND consumed_at IS NULL AND invalidated_at IS NULL
+                """, timestamp(now), timestamp(now), cartId);
     }
 
     public int countLines(UUID cartId) {

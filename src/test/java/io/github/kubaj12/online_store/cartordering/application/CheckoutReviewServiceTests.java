@@ -34,7 +34,7 @@ class CheckoutReviewServiceTests {
     @AfterEach void clearSecurity() { SecurityContextHolder.clearContext(); }
 
     @Test
-    void displaysAndPersistsTheSameSinglePriceResolution() throws Exception {
+    void rechecksPriorReviewAndDisplaysAndPersistsTheSameSinglePriceResolution() throws Exception {
         authenticateCustomer();
         var cart = new CartStore.Cart(cartId, customerId, CartStore.Status.ACTIVE, 7,
                 Instant.parse("2026-10-06T10:00:00Z"), Instant.parse("2026-10-06T10:00:00Z"), null);
@@ -49,8 +49,19 @@ class CheckoutReviewServiceTests {
         var service = new CheckoutReviewService(new CartService(store, prices), store, prices, reviewStore,
                 Clock.fixed(Instant.parse("2026-10-06T10:01:00Z"), ZoneOffset.UTC));
 
-        var review = service.issue();
+        byte[] priorRawToken = new byte[32];
+        java.util.Arrays.fill(priorRawToken, (byte) 7);
+        String priorToken = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(priorRawToken);
+        var prior = new CheckoutReviewStore.ReviewSnapshot(UUID.randomUUID(), cartId, customerId,
+                MessageDigest.getInstance("SHA-256").digest(priorRawToken), 7,
+                Instant.parse("2026-10-06T10:00:00Z"), Instant.parse("2026-10-06T10:30:00Z"),
+                List.of(new CheckoutReviewStore.ReviewedItem(skuId, 2, firstResolution.unitNetPrice(),
+                        firstResolution.vatRate(), new byte[32], new byte[32])));
+        when(reviewStore.activeForCart(cartId, customerId)).thenReturn(List.of(prior));
 
+        var review = service.issue(details(), priorToken);
+
+        assertThat(review.issued()).isTrue();
         assertThat(review.cart().lines().getFirst().price()).isEqualTo(firstResolution);
         assertThat(review.cart().lines().getFirst().amounts().net()).isEqualByComparingTo("24.68");
         assertThat(review.cart().lines().getFirst().amounts().vat()).isEqualByComparingTo("5.68");
@@ -83,12 +94,18 @@ class CheckoutReviewServiceTests {
                 Clock.fixed(Instant.parse("2026-10-06T10:01:00Z"), ZoneOffset.UTC));
 
         when(store.lines(cartId)).thenReturn(List.of());
-        assertThatThrownBy(service::issue).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> service.issue(details(), null)).isInstanceOf(IllegalStateException.class)
                 .hasMessage("Checkout requires a non-empty cart");
         when(store.lines(cartId)).thenReturn(List.of(new CartStore.Line(skuId, "SKU-1", "Produkt", 2, 1, true, true)));
-        assertThatThrownBy(service::issue).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> service.issue(details(), null)).isInstanceOf(IllegalStateException.class)
                 .hasMessage("Checkout cart contains unavailable items");
         verifyNoInteractions(prices, reviewStore);
+    }
+
+    private static CheckoutDetails details() {
+        return new CheckoutDetails(null, "Jan Kowalski",
+                io.github.kubaj12.online_store.shared.validation.PolishPhoneNumber.of("600700800"),
+                io.github.kubaj12.online_store.shared.validation.PolishAddress.of("Prosta", "1", null, "00-001", "Warszawa", "PL"));
     }
 
     private void authenticateCustomer() {
